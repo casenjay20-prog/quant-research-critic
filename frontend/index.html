@@ -1,0 +1,1182 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Quant Research Critic</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+
+    <style>
+      :root {
+        --bg:         #040d0f;
+        --card:       #0a1628;
+        --card-alt:   #071020;
+        --border:     #0f2a1e;
+        --border-dim: #0d1f2d;
+        --green:      #00c896;
+        --green-dim:  #065f46;
+        --green-bg:   #0f2a1e;
+        --blue:       #0ea5e9;
+        --danger:     #ef4444;
+        --warning:    #f59e0b;
+        --text:       #e8edf2;
+        --text-mid:   #94a3b8;
+        --text-dim:   #475569;
+        --mono:       'IBM Plex Mono', monospace;
+        --sans:       'IBM Plex Sans', system-ui, sans-serif;
+      }
+
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+
+      body {
+        font-family: var(--sans);
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+      }
+
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 32px;
+        height: 56px;
+        background: var(--bg);
+        border-bottom: 1px solid #0f4c35;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+      }
+
+      .logo {
+        font-family: var(--mono);
+        font-weight: 600;
+        font-size: 14px;
+        letter-spacing: 0.06em;
+        color: var(--text);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .logo-mark {
+        width: 22px;
+        height: 22px;
+        border: 2px solid var(--green);
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .logo-mark-inner {
+        width: 8px;
+        height: 8px;
+        background: var(--green);
+        border-radius: 1px;
+      }
+
+      .header-actions { display: flex; gap: 10px; align-items: center; }
+
+      .btn {
+        font-family: var(--mono);
+        font-size: 12px;
+        font-weight: 500;
+        letter-spacing: 0.04em;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        border: none;
+        transition: all 0.15s;
+      }
+
+      .btn-outline { background: transparent; border: 1px solid var(--green); color: var(--green); }
+      .btn-outline:hover { background: var(--green-bg); }
+      .btn-primary { background: var(--green); color: #040d0f; font-weight: 700; }
+      .btn-primary:hover { background: #00e5a8; }
+      .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+      main { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+
+      .product-subhead {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 24px;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+      }
+
+      .product-kicker {
+        font-family: var(--mono);
+        font-size: 10px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        margin-bottom: 8px;
+      }
+
+      .product-title {
+        font-family: var(--mono);
+        font-size: 20px;
+        font-weight: 600;
+        color: var(--text);
+        line-height: 1.4;
+        max-width: 760px;
+      }
+
+      .trust-links { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+      .trust-pill { font-family: var(--mono); font-size: 11px; border-radius: 6px; padding: 7px 10px; text-decoration: none; cursor: pointer; }
+      .trust-pill-method { color: var(--green);    background: var(--green-bg); border: 1px solid var(--border); }
+      .trust-pill-free   { color: var(--text-dim); background: var(--card-alt); border: 1px solid var(--border-dim); }
+      .trust-pill-pro    { color: #04110c;          background: var(--green);    border: 1px solid var(--green); font-weight: 600; }
+      .trust-pill-inst   { color: var(--text-mid);  background: var(--card-alt); border: 1px solid var(--border); }
+      .trust-pill:hover  { opacity: 0.85; }
+
+      .upload-panel {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 14px 20px;
+        margin-bottom: 10px;
+        display: flex;
+        gap: 20px;
+        align-items: flex-start;
+        flex-wrap: wrap;
+      }
+
+      .field { display: flex; flex-direction: column; gap: 5px; }
+
+      .field label {
+        font-family: var(--mono);
+        font-size: 10px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+      }
+
+      .field input[type="text"] {
+        font-family: var(--mono);
+        font-size: 12px;
+        padding: 8px 12px;
+        border-radius: 6px;
+        border: 1px solid var(--border-dim);
+        background: var(--card-alt);
+        color: var(--text);
+        width: 280px;
+      }
+
+      .file-input-wrapper { display: flex; gap: 8px; align-items: center; }
+
+      input[type="file"] {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--text-dim);
+        background: var(--card-alt);
+        border: 1px solid var(--border-dim);
+        border-radius: 6px;
+        padding: 7px 10px;
+      }
+
+      input[type="file"]::-webkit-file-upload-button {
+        font-family: var(--mono); font-size: 11px; color: #7dd3fc;
+        background: #071828; border: 1px solid #0ea5e9;
+        border-radius: 4px; padding: 4px 10px; cursor: pointer; margin-right: 8px;
+      }
+
+      input[type="file"]::file-selector-button {
+        font-family: var(--mono); font-size: 11px; color: #7dd3fc;
+        background: #071828; border: 1px solid #0ea5e9;
+        border-radius: 4px; padding: 4px 10px; cursor: pointer; margin-right: 8px;
+      }
+
+      .file-list { font-family: var(--mono); font-size: 11px; color: var(--text-dim); margin-top: 4px; line-height: 1.6; }
+      .empty-hint { font-family: var(--mono); font-size: 11px; color: var(--text-dim); margin-bottom: 20px; letter-spacing: 0.04em; }
+
+      .diagnostic-header {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 20px 24px;
+        margin-bottom: 18px;
+        animation: fadeUp 0.4s ease both;
+      }
+
+      .diag-title {
+        font-family: var(--mono);
+        font-size: 10px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        margin-bottom: 14px;
+      }
+
+      .diag-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 14px;
+      }
+
+      @media (max-width: 800px) { .diag-grid { grid-template-columns: repeat(3, 1fr); } }
+
+      .diag-item { display: flex; flex-direction: column; gap: 6px; }
+
+      .diag-label {
+        font-family: var(--mono);
+        font-size: 10px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+      }
+
+      .diag-value { font-family: var(--mono); font-size: 15px; font-weight: 600; color: var(--text); }
+      .diag-value.danger  { color: var(--danger); }
+      .diag-value.warning { color: var(--warning); }
+      .diag-value.good    { color: var(--green); }
+
+      .summary-banner {
+        background: var(--card);
+        border: 1px solid #0f4c35;
+        border-top: 3px solid var(--green);
+        border-radius: 10px;
+        padding: 24px 28px;
+        margin-bottom: 20px;
+        animation: fadeUp 0.4s ease both;
+      }
+
+      .summary-headline {
+        font-family: var(--mono);
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text);
+        letter-spacing: 0.02em;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .summary-sep { color: var(--text-dim); opacity: 0.8; }
+
+      .summary-narrative {
+        font-family: var(--sans);
+        font-size: 13px;
+        color: var(--text-mid);
+        line-height: 1.7;
+        max-width: 820px;
+      }
+
+      .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+        margin-bottom: 20px;
+        align-items: stretch;
+      }
+
+      @media (max-width: 900px) { .metrics-grid { grid-template-columns: repeat(2, 1fr); } }
+
+      .metric-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-top: 3px solid var(--green);
+        border-radius: 10px;
+        padding: 18px 20px;
+        min-height: 170px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        animation: fadeUp 0.4s ease both;
+      }
+
+      .metric-card-label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 12px; }
+      .metric-value { font-family: var(--mono); font-size: 32px; font-weight: 700; color: var(--text); line-height: 1; margin-bottom: 8px; }
+      .metric-sub { font-family: var(--mono); font-size: 11px; color: var(--text-mid); margin-bottom: 8px; }
+
+      .tag { display: inline-block; font-family: var(--mono); font-size: 10px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; }
+      .tag-green  { background: var(--green-bg); color: var(--green); }
+      .tag-danger { background: #3f0f0f;          color: var(--danger); }
+      .tag-warn   { background: #2d1f08;          color: var(--warning); }
+      .tag-blue   { background: #071828;          color: var(--blue); }
+
+      .overlap-badge { display: inline-block; font-family: var(--mono); font-size: 16px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; padding: 8px 12px; border-radius: 4px; margin-bottom: 8px; }
+      .overlap-badge.high   { background: var(--danger); color: white; }
+      .overlap-badge.medium { background: var(--warning); color: #1a1204; }
+      .overlap-badge.low    { background: var(--green);   color: #04110c; }
+
+      .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+      @media (max-width: 800px) { .charts-grid { grid-template-columns: 1fr; } }
+
+      .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 14px; animation: fadeUp 0.4s ease both; }
+
+      .card-title { font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+      .card-title::before { content: ''; display: block; width: 3px; height: 12px; background: var(--green); border-radius: 2px; }
+
+      .weights-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border-dim); gap: 12px; }
+      .weights-row:last-child { border-bottom: none; }
+      .weights-name { font-family: var(--mono); font-size: 12px; color: var(--text); flex: 1; }
+      .weights-bar-wrap { flex: 2; height: 4px; background: var(--border-dim); border-radius: 2px; overflow: hidden; }
+      .weights-bar { height: 100%; border-radius: 2px; transition: width 0.8s cubic-bezier(.16,1,.3,1); }
+      .weights-pct { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--green); width: 48px; text-align: right; }
+
+      .heatmap-wrapper { overflow-x: auto; }
+      .heatmap-grid { display: grid; gap: 6px; min-width: max-content; }
+      .heatmap-top-label { font-family: var(--mono); font-size: 10px; color: var(--text-dim); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-bottom: 4px; max-width: 80px; }
+      .heatmap-label { font-family: var(--mono); font-size: 10px; color: var(--text-dim); display: flex; align-items: center; padding-right: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
+      .heatmap-cell { min-height: 44px; border-radius: 6px; border: 1px solid var(--border-dim); display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 11px; color: var(--text); min-width: 60px; }
+
+      .heatmap-legend { display: flex; gap: 18px; margin-top: 14px; font-family: var(--mono); font-size: 10px; color: var(--text-dim); align-items: center; flex-wrap: wrap; }
+      .heatmap-legend-item { display: flex; align-items: center; gap: 6px; }
+      .legend-swatch { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+
+      .ai-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+      @media (max-width: 800px) { .ai-grid { grid-template-columns: 1fr; } }
+
+      .insight-card { background: var(--card-alt); border: 1px solid var(--border-dim); border-radius: 8px; padding: 16px; }
+      .insight-label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 10px; }
+      .insight-body { font-family: var(--sans); font-size: 13px; line-height: 1.7; color: var(--text-mid); white-space: pre-wrap; word-break: break-word; }
+
+      .expand-btn {
+        background: none;
+        border: none;
+        color: var(--green);
+        font-family: var(--mono);
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        cursor: pointer;
+        padding: 8px 0 0 0;
+        display: block;
+        opacity: 0.8;
+      }
+      .expand-btn:hover { opacity: 1; }
+
+      .rec-summary { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 12px; line-height: 1.6; }
+      ul.rec-list { list-style: none; padding: 0; }
+      ul.rec-list li { font-family: var(--sans); font-size: 13px; color: var(--text-mid); padding: 6px 0 6px 16px; border-left: 2px solid var(--green-dim); margin-bottom: 6px; line-height: 1.6; }
+
+      .bar-chart { display: flex; align-items: flex-end; gap: 8px; height: 140px; padding-top: 16px; }
+      .bar-col { display: flex; flex-direction: column; align-items: center; flex: 1; gap: 4px; height: 100%; justify-content: flex-end; }
+      .bar-fill { width: 100%; border-radius: 3px 3px 0 0; transition: height 0.8s cubic-bezier(.16,1,.3,1); min-height: 4px; }
+      .bar-label { font-family: var(--mono); font-size: 9px; color: var(--text-dim); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; letter-spacing: 0.04em; }
+      .bar-pct { font-family: var(--mono); font-size: 10px; color: var(--green); font-weight: 600; }
+
+      .toggle-row { display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 12px; }
+      .toggle-row span { font-family: var(--mono); font-size: 11px; color: var(--text-dim); letter-spacing: 0.08em; }
+      .toggle-row:hover span { color: var(--text-mid); }
+      pre.raw-json { font-family: var(--mono); font-size: 11px; white-space: pre-wrap; word-break: break-word; background: var(--card-alt); border: 1px solid var(--border-dim); border-radius: 8px; padding: 14px; color: var(--text-mid); overflow: auto; max-height: 400px; }
+
+      .section-label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-dim); margin: 28px 0 14px; display: flex; align-items: center; gap: 10px; }
+      .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border-dim); }
+
+      .nav-pills { display: flex; gap: 8px; margin-bottom: 28px; flex-wrap: wrap; }
+      .nav-pill { font-family: var(--mono); font-size: 11px; padding: 6px 14px; border-radius: 6px; text-decoration: none; border: 1px solid var(--border-dim); color: var(--text-dim); transition: all 0.15s; }
+      .nav-pill:hover { border-color: var(--green); color: var(--green); }
+      .nav-pill.active { border-color: var(--green); color: var(--green); background: var(--green-bg); }
+      .btn-pro { background: transparent; border: 1px solid var(--warning); color: var(--warning); }
+      .btn-pro:hover { background: #2d1f08; }
+
+      /* Copilot */
+      .copilot-card {
+        background: var(--card);
+        border: 1px solid var(--green-dim);
+        border-top: 3px solid var(--green);
+        border-radius: 10px;
+        padding: 20px 24px;
+        margin-bottom: 14px;
+        animation: fadeUp 0.4s ease both;
+      }
+
+      .copilot-messages {
+        min-height: 48px;
+        max-height: 400px;
+        overflow-y: auto;
+        margin-bottom: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .copilot-msg {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+      }
+
+      .copilot-msg-role {
+        font-family: var(--mono);
+        font-size: 10px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        padding-top: 2px;
+        flex-shrink: 0;
+        width: 52px;
+      }
+
+      .copilot-msg-role.user { color: var(--text-dim); }
+      .copilot-msg-role.assistant { color: var(--green); }
+
+      .copilot-msg-body {
+        font-family: var(--sans);
+        font-size: 13px;
+        line-height: 1.7;
+        color: var(--text-mid);
+        flex: 1;
+      }
+
+      .copilot-msg-body.user { color: var(--text); }
+
+      .copilot-input-row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .copilot-input {
+        flex: 1;
+        font-family: var(--mono);
+        font-size: 12px;
+        padding: 10px 14px;
+        border-radius: 6px;
+        border: 1px solid var(--border-dim);
+        background: var(--card-alt);
+        color: var(--text);
+        outline: none;
+        transition: border-color 0.15s;
+      }
+
+      .copilot-input:focus { border-color: var(--green); }
+      .copilot-input::placeholder { color: var(--text-dim); }
+
+      .copilot-hint {
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--text-dim);
+        margin-bottom: 12px;
+        line-height: 1.8;
+      }
+
+      .copilot-hint span {
+        display: inline-block;
+        background: var(--card-alt);
+        border: 1px solid var(--border-dim);
+        border-radius: 4px;
+        padding: 2px 8px;
+        margin: 2px 4px 2px 0;
+        cursor: pointer;
+        transition: border-color 0.15s;
+      }
+
+      .copilot-hint span:hover { border-color: var(--green); color: var(--green); }
+
+      .copilot-thinking {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--text-dim);
+        letter-spacing: 0.08em;
+        animation: pulse 1.5s ease-in-out infinite;
+      }
+
+      @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+
+      /* Pricing */
+      .pricing-section { margin-top: 48px; padding-top: 32px; border-top: 1px solid var(--border-dim); }
+      .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 20px; }
+      @media (max-width: 800px) { .pricing-grid { grid-template-columns: 1fr; } }
+      .pricing-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 24px; }
+      .pricing-card.featured { border-color: var(--green); border-top: 3px solid var(--green); }
+      .pricing-tier { font-family: var(--mono); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px; }
+      .pricing-price { font-family: var(--mono); font-size: 24px; font-weight: 700; color: var(--text); margin-bottom: 16px; }
+      .pricing-price span { font-size: 13px; font-weight: 400; color: var(--text-dim); }
+      .pricing-features { list-style: none; padding: 0; margin-bottom: 20px; }
+      .pricing-features li { font-family: var(--sans); font-size: 12px; color: var(--text-mid); padding: 5px 0 5px 14px; border-left: 2px solid var(--border-dim); margin-bottom: 5px; line-height: 1.6; }
+      .pricing-features li.included { border-left-color: var(--green); color: var(--text); }
+
+      @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+      ::-webkit-scrollbar { width: 6px; height: 6px; }
+      ::-webkit-scrollbar-track { background: var(--bg); }
+      ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+      .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(4,13,15,0.85); z-index: 200; align-items: center; justify-content: center; }
+      .modal-overlay.visible { display: flex; }
+      .modal { background: var(--card); border: 1px solid #0f4c35; border-top: 3px solid var(--warning); border-radius: 12px; padding: 32px; max-width: 480px; width: 100%; margin: 24px; animation: fadeUp 0.3s ease both; }
+      .modal-kicker { font-family: var(--mono); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--warning); margin-bottom: 10px; }
+      .modal-title { font-family: var(--mono); font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 14px; }
+      .modal-body { font-family: var(--sans); font-size: 13px; color: var(--text-mid); line-height: 1.8; margin-bottom: 24px; }
+      .modal-features { list-style: none; padding: 0; margin-bottom: 24px; }
+      .modal-features li { font-family: var(--mono); font-size: 12px; color: var(--text-mid); padding: 6px 0 6px 14px; border-left: 2px solid var(--green-dim); margin-bottom: 6px; }
+      .modal-actions { display: flex; gap: 10px; }
+      .modal-close { font-family: var(--mono); font-size: 11px; color: var(--text-dim); background: none; border: none; cursor: pointer; padding: 8px 0; text-decoration: underline; }
+      .modal-close:hover { color: var(--text-mid); }
+    </style>
+  </head>
+
+  <body>
+    <!-- PDF Gate Modal -->
+    <div class="modal-overlay" id="pdfModal">
+      <div class="modal">
+        <div class="modal-kicker">Pro Feature</div>
+        <div class="modal-title">PDF Export — $99/mo</div>
+        <div class="modal-body">
+          Download a full portfolio intelligence memo — correlation analysis, cluster breakdown, allocation weights, AI commentary, and deterministic provenance signature. Ready to share with your fund or investment committee.
+        </div>
+        <ul class="modal-features">
+          <li>Portfolio intelligence memo PDF</li>
+          <li>Deterministic provenance signature</li>
+          <li>AI commentary + allocation rationale</li>
+          <li>Correlation heatmap + cluster analysis</li>
+          <li>Quant Copilot Q&A included</li>
+        </ul>
+        <div class="modal-actions">
+          <button class="btn btn-pro" id="pdfUpgradeBtn">Upgrade to Pro →</button>
+          <button class="modal-close" id="pdfModalCloseBtn">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <header>
+      <div class="logo">
+        <div class="logo-mark"><div class="logo-mark-inner"></div></div>
+        Quant Research Critic
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-primary" id="sampleBtn">Try Sample Portfolio</button>
+        <button class="btn btn-outline" id="run">Analyze Portfolio</button>
+        <button class="btn btn-outline" id="downloadPdf" style="display:none;">↓ Download PDF</button>
+      </div>
+    </header>
+
+    <main>
+      <div class="nav-pills">
+        <a href="./index.html" class="nav-pill active">Portfolio Analysis</a>
+        <a href="./compare.html" class="nav-pill">Strategy Comparison</a>
+        <a href="./methodology.html" class="nav-pill">Methodology</a>
+      </div>
+
+      <div class="product-subhead">
+        <div>
+          <div class="product-kicker">Deterministic Engine</div>
+          <div class="product-title">Deterministic portfolio diagnostics with AI research interpretation for systematic strategies.</div>
+        </div>
+        <div class="trust-links">
+          <a href="./methodology.html" class="trust-pill trust-pill-method">Methodology</a>
+          <a href="#pricing" class="trust-pill trust-pill-free">Free</a>
+          <a href="#pricing" class="trust-pill trust-pill-pro">$99/mo Pro</a>
+          <a href="#pricing" class="trust-pill trust-pill-inst">$500+/mo Institutional</a>
+        </div>
+      </div>
+
+      <div class="upload-panel">
+        <div class="field">
+          <label>Backend URL</label>
+          <input type="text" id="baseUrl" value="http://127.0.0.1:8000" />
+        </div>
+        <div class="field">
+          <label>Strategy CSV Files</label>
+          <div class="file-input-wrapper">
+            <input id="filePicker" type="file" accept=".csv" />
+            <button class="btn btn-outline" type="button" id="addFile">Add</button>
+          </div>
+          <div id="fileList" class="file-list">No files added yet.</div>
+        </div>
+      </div>
+
+      <div id="emptyHint" class="empty-hint">↓ Add CSV files, then click Analyze Portfolio</div>
+
+      <div id="results" style="display:none;">
+
+        <div class="diagnostic-header">
+          <div class="diag-title">Portfolio Diagnostic</div>
+          <div class="diag-grid">
+            <div class="diag-item"><span class="diag-label">Diversification</span><span class="diag-value" id="diagDiversification">—</span></div>
+            <div class="diag-item"><span class="diag-label">Overlap Risk</span><span class="diag-value" id="diagOverlap">—</span></div>
+            <div class="diag-item"><span class="diag-label">Clusters</span><span class="diag-value" id="diagClusters">—</span></div>
+            <div class="diag-item"><span class="diag-label">Best Sleeve</span><span class="diag-value" id="diagBest">—</span></div>
+            <div class="diag-item"><span class="diag-label">Avg Correlation</span><span class="diag-value" id="diagCorr">—</span></div>
+          </div>
+        </div>
+
+        <div class="summary-banner">
+          <div class="summary-headline" id="summaryHeadline">—</div>
+          <div class="summary-narrative" id="summaryNarrative"></div>
+        </div>
+
+        <div class="section-label">Research Interpretation</div>
+        <div class="ai-grid">
+          <div class="card">
+            <div class="card-title">Portfolio Commentary</div>
+            <div class="insight-card">
+              <div class="insight-label">Key Diagnosis</div>
+              <div class="insight-body" id="aiCommentary">—</div>
+              <button class="expand-btn" id="aiExpandBtn" style="display:none;">Read more ↓</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Allocation Rationale</div>
+            <div class="insight-card">
+              <div class="insight-label">Allocation Logic</div>
+              <div class="insight-body" id="allocationRationale">—</div>
+              <button class="expand-btn" id="allocExpandBtn" style="display:none;">Read more ↓</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div><div class="metric-card-label">Diversification Score</div><div class="metric-value" id="divScore">—</div><div class="metric-sub" id="avgCorr"></div></div>
+            <div><span class="tag" id="divTag">—</span></div>
+          </div>
+          <div class="metric-card">
+            <div><div class="metric-card-label">Cluster Analysis</div><div class="metric-value" id="clusterCount">—</div><div class="metric-sub" id="clusterSub"></div></div>
+            <div><span class="tag tag-blue">Cluster Structure</span></div>
+          </div>
+          <div class="metric-card">
+            <div><div class="metric-card-label">Overlap Risk</div><div class="overlap-badge" id="overlapValue">—</div><div class="metric-sub">Portfolio Overlap</div></div>
+            <div><span class="tag" id="overlapTag">—</span></div>
+          </div>
+          <div class="metric-card">
+            <div><div class="metric-card-label">Allocation Overview</div><div class="metric-value" id="topHoldingPct">—</div><div class="metric-sub" id="topHoldingName"></div></div>
+            <div><span class="tag tag-blue">Top Holding</span></div>
+          </div>
+        </div>
+
+        <div class="section-label">Portfolio Analysis</div>
+        <div class="charts-grid">
+          <div class="card">
+            <div class="card-title">Portfolio Allocation</div>
+            <div class="bar-chart" id="barChart"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Allocation Weights</div>
+            <div id="weights"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Correlation Heatmap</div>
+          <div class="heatmap-wrapper"><div id="heatmap"></div></div>
+          <div class="heatmap-legend">
+            <div class="heatmap-legend-item"><div class="legend-swatch" style="background:rgba(0,200,150,0.4)"></div><span>Low</span></div>
+            <div class="heatmap-legend-item"><div class="legend-swatch" style="background:rgba(14,165,233,0.5)"></div><span>Moderate</span></div>
+            <div class="heatmap-legend-item"><div class="legend-swatch" style="background:rgba(245,158,11,0.6)"></div><span>Elevated</span></div>
+            <div class="heatmap-legend-item"><div class="legend-swatch" style="background:rgba(239,68,68,0.85)"></div><span>High</span></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Recommendations</div>
+          <div class="rec-summary" id="recommendationSummary">—</div>
+          <ul class="rec-list" id="recommendationBullets"></ul>
+        </div>
+
+        <!-- QUANT COPILOT -->
+        <div class="section-label">Quant Copilot</div>
+        <div class="copilot-card">
+          <div class="card-title">Ask anything about this portfolio</div>
+          <div class="copilot-hint">
+            Try:
+            <span id="hint1">Which strategy should I cut first?</span>
+            <span id="hint2">What correlation threshold should I target?</span>
+            <span id="hint3">Is this portfolio ready to deploy?</span>
+          </div>
+          <div class="copilot-messages" id="copilotMessages"></div>
+          <div class="copilot-input-row">
+            <input class="copilot-input" id="copilotInput" type="text" placeholder="Ask about your portfolio..." />
+            <button class="btn btn-primary" id="copilotSend">Ask</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="toggle-row" id="jsonToggle"><span>▶ RAW JSON OUTPUT</span></div>
+          <pre class="raw-json" id="rawJson" style="display:none;"></pre>
+        </div>
+
+      </div>
+
+      <div class="pricing-section" id="pricing">
+        <div class="section-label">Pricing</div>
+        <div class="pricing-grid">
+          <div class="pricing-card">
+            <div class="pricing-tier">Free</div>
+            <div class="pricing-price">$0 <span>/ forever</span></div>
+            <ul class="pricing-features">
+              <li class="included">Portfolio diversification analysis</li>
+              <li class="included">Correlation matrix + heatmap</li>
+              <li class="included">Cluster detection</li>
+              <li class="included">Allocation weights</li>
+              <li class="included">AI portfolio commentary</li>
+              <li class="included">Quant Copilot Q&A</li>
+              <li>Saved analyses</li>
+              <li>PDF export</li>
+              <li>Allocator report</li>
+            </ul>
+          </div>
+          <div class="pricing-card featured">
+            <div class="pricing-tier">Pro</div>
+            <div class="pricing-price">$99 <span>/ month</span></div>
+            <ul class="pricing-features">
+              <li class="included">Everything in Free</li>
+              <li class="included">Portfolio intelligence PDF</li>
+              <li class="included">Strategy comparison PDF</li>
+              <li class="included">Allocator report (no watermark)</li>
+              <li class="included">Walk-forward robustness testing</li>
+              <li class="included">Saved analyses + history</li>
+              <li>API access</li>
+              <li>Team sharing</li>
+            </ul>
+          </div>
+          <div class="pricing-card">
+            <div class="pricing-tier">Institutional</div>
+            <div class="pricing-price">$500+ <span>/ month</span></div>
+            <ul class="pricing-features">
+              <li class="included">Everything in Pro</li>
+              <li class="included">API access</li>
+              <li class="included">Batch analysis</li>
+              <li class="included">Team sharing</li>
+              <li class="included">Priority support</li>
+              <li class="included">Custom onboarding</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <script>
+      const selectedFiles = [];
+      const opacities = [1, 0.85, 0.7, 0.55];
+      let copilotPortfolioReport = null;
+      let copilotHistory = [];
+
+      function pct(x) { return (Number(x) * 100).toFixed(1) + "%"; }
+      function setText(id, v) { document.getElementById(id).textContent = v; }
+      function clearEl(el) { while (el.firstChild) el.removeChild(el.firstChild); }
+      function fileKey(f) { return f.name + "__" + f.size + "__" + f.lastModified; }
+
+      function overlapBadgeClass(r) { return r === "HIGH" ? "high" : r === "MEDIUM" ? "medium" : "low"; }
+      function overlapTagClass(r)   { return r === "HIGH" ? "tag-danger" : r === "MEDIUM" ? "tag-warn" : "tag-green"; }
+      function divClass(s)  { return s < 0.35 ? "tag-danger" : s < 0.6 ? "tag-warn" : "tag-green"; }
+      function divLabel(s)  { return s < 0.35 ? "Low Diversification" : s < 0.6 ? "Moderate Diversification" : "Well Diversified"; }
+      function divShort(s)  { return s < 0.35 ? "Weak" : s < 0.6 ? "Moderate" : "Strong"; }
+
+      function corrColor(v) {
+        const n = Number(v);
+        if (n >= 0.9)  return "rgba(239,68,68,0.85)";
+        if (n >= 0.75) return "rgba(239,68,68,0.65)";
+        if (n >= 0.5)  return "rgba(245,158,11,0.55)";
+        if (n >= 0.25) return "rgba(14,165,233,0.45)";
+        return "rgba(0,200,150,0.35)";
+      }
+
+      function renderFileList() {
+        const el = document.getElementById("fileList");
+        clearEl(el);
+        if (!selectedFiles.length) { el.textContent = "No files added yet."; return; }
+        selectedFiles.forEach((f, i) => {
+          const row = document.createElement("div");
+          row.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 0;";
+          const name = document.createElement("span");
+          name.textContent = (i + 1) + ". " + f.name;
+          const remove = document.createElement("button");
+          remove.textContent = "×";
+          remove.title = "Remove file";
+          remove.style.cssText = "background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;padding:0 4px;line-height:1;opacity:0;transition:opacity 0.15s;";
+          remove.addEventListener("click", () => { selectedFiles.splice(i, 1); renderFileList(); });
+          row.addEventListener("mouseenter", () => remove.style.opacity = "1");
+          row.addEventListener("mouseleave", () => remove.style.opacity = "0");
+          remove.addEventListener("mouseenter", () => remove.style.color = "var(--danger)");
+          remove.addEventListener("mouseleave", () => remove.style.color = "var(--text-dim)");
+          row.appendChild(name);
+          row.appendChild(remove);
+          el.appendChild(row);
+        });
+      }
+
+      document.getElementById("addFile").addEventListener("click", () => {
+        const picker = document.getElementById("filePicker");
+        const file = picker.files[0];
+        if (!file) { alert("Choose a file first."); return; }
+        if (selectedFiles.some(f => fileKey(f) === fileKey(file))) { alert("Already added."); picker.value = ""; return; }
+        selectedFiles.push(file);
+        picker.value = "";
+        renderFileList();
+      });
+
+      document.getElementById("jsonToggle").addEventListener("click", () => {
+        const pre = document.getElementById("rawJson");
+        const label = document.querySelector("#jsonToggle span");
+        const visible = pre.style.display !== "none";
+        pre.style.display = visible ? "none" : "block";
+        label.textContent = (visible ? "▶" : "▼") + " RAW JSON OUTPUT";
+      });
+
+      function buildHeadline(parts) {
+        const el = document.getElementById("summaryHeadline");
+        clearEl(el);
+        parts.forEach((part, i) => {
+          const node = document.createElement(i === 0 ? "strong" : "span");
+          node.textContent = part;
+          el.appendChild(node);
+          if (i < parts.length - 1) {
+            const sep = document.createElement("span");
+            sep.className = "summary-sep";
+            sep.textContent = " · ";
+            el.appendChild(sep);
+          }
+        });
+      }
+
+      function renderWeights(weights) {
+        const el = document.getElementById("weights");
+        clearEl(el);
+        const maxW = weights.length ? Math.max(...weights.map(w => Number(w.weight))) : 100;
+        weights.forEach((w, i) => {
+          const pctVal = Number(w.weight);
+          const row = document.createElement("div"); row.className = "weights-row";
+          const name = document.createElement("span"); name.className = "weights-name"; name.textContent = String(w.name);
+          const wrap = document.createElement("div"); wrap.className = "weights-bar-wrap";
+          const bar = document.createElement("div"); bar.className = "weights-bar";
+          bar.style.width = ((pctVal / maxW) * 100) + "%";
+          bar.style.background = "rgba(0,200,150," + opacities[i % opacities.length] + ")";
+          wrap.appendChild(bar);
+          const pctSpan = document.createElement("span"); pctSpan.className = "weights-pct"; pctSpan.textContent = pctVal.toFixed(1) + "%";
+          row.appendChild(name); row.appendChild(wrap); row.appendChild(pctSpan);
+          el.appendChild(row);
+        });
+      }
+
+      function renderBarChart(weights) {
+        const el = document.getElementById("barChart");
+        clearEl(el);
+        const maxPct = weights.length ? Math.max(...weights.map(w => Number(w.weight))) : 100;
+        weights.forEach((w, i) => {
+          const pctVal = Number(w.weight);
+          const col = document.createElement("div"); col.className = "bar-col";
+          const pctSpan = document.createElement("span"); pctSpan.className = "bar-pct"; pctSpan.textContent = pctVal.toFixed(0) + "%";
+          const fill = document.createElement("div"); fill.className = "bar-fill";
+          fill.style.height = ((pctVal / maxPct) * 100) + "%";
+          fill.style.background = "rgba(0,200,150," + opacities[i % opacities.length] + ")";
+          const label = document.createElement("span"); label.className = "bar-label"; label.textContent = String(w.name); label.title = String(w.name);
+          col.appendChild(pctSpan); col.appendChild(fill); col.appendChild(label);
+          el.appendChild(col);
+        });
+      }
+
+      function renderHeatmap(names, matrix) {
+        const container = document.getElementById("heatmap");
+        clearEl(container);
+        if (!names || !names.length || !matrix || !matrix.length) { container.textContent = "No correlation matrix available."; return; }
+        const grid = document.createElement("div"); grid.className = "heatmap-grid";
+        grid.style.gridTemplateColumns = "140px repeat(" + names.length + ", minmax(60px, 1fr))";
+        grid.appendChild(document.createElement("div"));
+        names.forEach(name => {
+          const label = document.createElement("div"); label.className = "heatmap-top-label";
+          label.textContent = String(name); label.title = String(name);
+          grid.appendChild(label);
+        });
+        names.forEach((rowName, i) => {
+          const rowLabel = document.createElement("div"); rowLabel.className = "heatmap-label";
+          rowLabel.textContent = String(rowName); rowLabel.title = String(rowName);
+          grid.appendChild(rowLabel);
+          matrix[i].forEach(value => {
+            const cell = document.createElement("div"); cell.className = "heatmap-cell";
+            cell.style.background = corrColor(value);
+            cell.textContent = Number(value).toFixed(2);
+            cell.title = "Correlation: " + Number(value).toFixed(4);
+            grid.appendChild(cell);
+          });
+        });
+        container.appendChild(grid);
+      }
+
+      function renderBullets(bullets) {
+        const el = document.getElementById("recommendationBullets");
+        clearEl(el);
+        (bullets || []).forEach(b => { const li = document.createElement("li"); li.textContent = String(b); el.appendChild(li); });
+      }
+
+      function setupExpandBtn(bodyId, btnId, fullText) {
+        const bodyEl = document.getElementById(bodyId);
+        const btn = document.getElementById(btnId);
+        const sentences = fullText.split(".").map(s => s.trim()).filter(Boolean);
+        const shortText = sentences.slice(0, 2).join(". ") + (sentences.length > 0 ? "." : "");
+        const hasMore = fullText.length > shortText.length;
+        bodyEl.textContent = hasMore ? shortText : fullText;
+        if (hasMore) {
+          btn.style.display = "block";
+          let expanded = false;
+          btn.onclick = () => {
+            expanded = !expanded;
+            bodyEl.textContent = expanded ? fullText : shortText;
+            btn.textContent = expanded ? "Read less ↑" : "Read more ↓";
+          };
+        } else {
+          btn.style.display = "none";
+        }
+      }
+
+      // ── Copilot ──
+      function addCopilotMessage(role, text) {
+        const container = document.getElementById("copilotMessages");
+        const msg = document.createElement("div");
+        msg.className = "copilot-msg";
+        const roleEl = document.createElement("div");
+        roleEl.className = "copilot-msg-role " + role;
+        roleEl.textContent = role === "user" ? "You" : "Copilot";
+        const body = document.createElement("div");
+        body.className = "copilot-msg-body " + role;
+        body.textContent = text;
+        msg.appendChild(roleEl);
+        msg.appendChild(body);
+        container.appendChild(msg);
+        container.scrollTop = container.scrollHeight;
+        return body;
+      }
+
+      function addCopilotThinking() {
+        const container = document.getElementById("copilotMessages");
+        const msg = document.createElement("div");
+        msg.className = "copilot-msg";
+        const roleEl = document.createElement("div");
+        roleEl.className = "copilot-msg-role assistant";
+        roleEl.textContent = "Copilot";
+        const body = document.createElement("div");
+        body.className = "copilot-thinking";
+        body.textContent = "Thinking...";
+        msg.appendChild(roleEl);
+        msg.appendChild(body);
+        container.appendChild(msg);
+        container.scrollTop = container.scrollHeight;
+        return msg;
+      }
+
+      async function sendCopilotQuestion(question) {
+        if (!question.trim()) return;
+        if (!copilotPortfolioReport) {
+          addCopilotMessage("assistant", "Run a portfolio analysis first, then ask me about it.");
+          return;
+        }
+
+        const baseUrl = document.getElementById("baseUrl").value.replace(/\/$/, "");
+        const sendBtn = document.getElementById("copilotSend");
+        const input = document.getElementById("copilotInput");
+
+        addCopilotMessage("user", question);
+        input.value = "";
+        sendBtn.disabled = true;
+
+        const thinkingMsg = addCopilotThinking();
+
+        try {
+          const res = await fetch(baseUrl + "/v1/portfolio/copilot", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              question: question,
+              portfolio_report: copilotPortfolioReport,
+              conversation_history: copilotHistory,
+            }),
+          });
+
+          thinkingMsg.remove();
+
+          if (!res.ok) {
+            addCopilotMessage("assistant", "Error getting response — try again.");
+            return;
+          }
+
+          const data = await res.json();
+          const answer = data.answer || "No response received.";
+          addCopilotMessage("assistant", answer);
+
+          copilotHistory.push({ role: "user", content: question });
+          copilotHistory.push({ role: "assistant", content: answer });
+          if (copilotHistory.length > 12) copilotHistory = copilotHistory.slice(-12);
+
+        } catch (e) {
+          thinkingMsg.remove();
+          addCopilotMessage("assistant", "Network error — check that your backend is running.");
+        } finally {
+          sendBtn.disabled = false;
+        }
+      }
+
+      document.getElementById("copilotSend").addEventListener("click", () => {
+        sendCopilotQuestion(document.getElementById("copilotInput").value);
+      });
+
+      document.getElementById("copilotInput").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") sendCopilotQuestion(document.getElementById("copilotInput").value);
+      });
+
+      // Hint chips
+      ["hint1", "hint2", "hint3"].forEach(id => {
+        document.getElementById(id).addEventListener("click", () => {
+          sendCopilotQuestion(document.getElementById(id).textContent);
+        });
+      });
+
+      function renderResults(data) {
+        const report          = data.portfolio_report  || {};
+        const correlation     = report.correlation     || {};
+        const clustering      = report.clustering      || {};
+        const overlap         = report.overlap         || {};
+        const allocation      = report.allocation      || {};
+        const recommendations = report.recommendations || {};
+        const weights         = allocation.weights     || [];
+
+        // Store portfolio report for copilot
+        copilotPortfolioReport = report;
+        copilotHistory = [];
+        clearEl(document.getElementById("copilotMessages"));
+
+        document.getElementById("results").style.display = "block";
+        document.getElementById("emptyHint").style.display = "none";
+        document.getElementById("downloadPdf").style.display = "inline-block";
+
+        const divScoreRaw = Number(correlation.diversification_score || 0);
+        const overlapRisk = String(overlap.portfolio_overlap_risk || "N/A").toUpperCase();
+        const topWeight   = weights.length ? weights.reduce((a, b) => Number(a.weight) > Number(b.weight) ? a : b) : null;
+
+        const dDiv = document.getElementById("diagDiversification");
+        dDiv.textContent = divShort(divScoreRaw);
+        dDiv.className = "diag-value " + (divScoreRaw < 0.35 ? "danger" : divScoreRaw < 0.6 ? "warning" : "good");
+
+        const dOv = document.getElementById("diagOverlap");
+        dOv.textContent = overlapRisk;
+        dOv.className = "diag-value " + (overlapRisk === "HIGH" ? "danger" : overlapRisk === "MEDIUM" ? "warning" : "good");
+
+        setText("diagClusters", String(clustering.cluster_count || 0));
+        setText("diagBest", topWeight ? String(topWeight.name) : "—");
+        setText("diagCorr", Number(correlation.average_correlation || 0).toFixed(2));
+
+        setText("divScore", pct(divScoreRaw));
+        setText("avgCorr", "Avg correlation: " + Number(correlation.average_correlation || 0).toFixed(2));
+        const divTagEl = document.getElementById("divTag"); divTagEl.className = "tag " + divClass(divScoreRaw); divTagEl.textContent = divLabel(divScoreRaw);
+        setText("clusterCount", String(clustering.cluster_count || 0));
+        setText("clusterSub", "Clusters Detected");
+        const ovEl = document.getElementById("overlapValue"); ovEl.className = "overlap-badge " + overlapBadgeClass(overlapRisk); ovEl.textContent = overlapRisk;
+        const ovTag = document.getElementById("overlapTag"); ovTag.className = "tag " + overlapTagClass(overlapRisk);
+        ovTag.textContent = overlapRisk === "HIGH" ? "Significant Overlap" : overlapRisk === "MEDIUM" ? "Moderate Overlap" : "Low Overlap";
+        setText("topHoldingPct", topWeight ? Number(topWeight.weight).toFixed(1) + "%" : "—");
+        setText("topHoldingName", topWeight ? String(topWeight.name) : "");
+
+        const divLabelShort = divScoreRaw < 0.35 ? "Weak diversification" : divScoreRaw < 0.6 ? "Moderate diversification" : "Strong diversification";
+        const overlapLabel  = overlapRisk === "HIGH" ? "High overlap" : overlapRisk === "MEDIUM" ? "Moderate overlap" : "Low overlap";
+        const clusterLabel  = (clustering.cluster_count || 0) + " clusters detected";
+        const bestSleeve    = topWeight ? "Best sleeve: " + String(topWeight.name) : "";
+        buildHeadline([divLabelShort, overlapLabel, clusterLabel, bestSleeve].filter(Boolean));
+
+        const commentaryText = (data.ai_commentary && data.ai_commentary.portfolio_commentary)
+          ? String(data.ai_commentary.portfolio_commentary) : "No AI commentary available.";
+        const shortNarrative = commentaryText.split(".").map(s => s.trim()).filter(Boolean).slice(0, 2).join(". ");
+        setText("summaryNarrative", shortNarrative ? shortNarrative + "." : "");
+
+        const rationaleText = (data.allocation_rationale && data.allocation_rationale.allocation_rationale)
+          ? String(data.allocation_rationale.allocation_rationale) : "No allocation rationale available.";
+
+        setupExpandBtn("aiCommentary", "aiExpandBtn", commentaryText);
+        setupExpandBtn("allocationRationale", "allocExpandBtn", rationaleText);
+
+        renderWeights(weights);
+        renderBarChart(weights);
+        renderHeatmap(report.names || [], correlation.correlation_matrix || []);
+        setText("recommendationSummary", recommendations.summary || "No recommendation summary available.");
+        renderBullets(recommendations.bullets || []);
+        setText("rawJson", JSON.stringify(data, null, 2));
+      }
+
+      document.getElementById("run").addEventListener("click", async () => {
+        const btn = document.getElementById("run");
+        const baseUrl = document.getElementById("baseUrl").value.replace(/\/$/, "");
+        if (!selectedFiles.length) { alert("Add CSV files first."); return; }
+        btn.disabled = true; btn.textContent = "Analyzing...";
+        const form = new FormData();
+        for (const file of selectedFiles) form.append("files", file);
+        try {
+          const res = await fetch(baseUrl + "/v1/portfolio/analyze", { method: "POST", body: form });
+          if (!res.ok) { alert("Error " + res.status + ": " + await res.text()); return; }
+          renderResults(await res.json());
+        } catch (e) { alert("Network error: " + e); }
+        finally { btn.disabled = false; btn.textContent = "Analyze Portfolio"; }
+      });
+
+      document.getElementById("downloadPdf").addEventListener("click", () => {
+        document.getElementById("pdfModal").classList.add("visible");
+      });
+
+      document.getElementById("pdfModalCloseBtn").addEventListener("click", () => {
+        document.getElementById("pdfModal").classList.remove("visible");
+      });
+
+      document.getElementById("pdfModal").addEventListener("click", (e) => {
+        if (e.target === document.getElementById("pdfModal")) {
+          document.getElementById("pdfModal").classList.remove("visible");
+        }
+      });
+
+      document.getElementById("pdfUpgradeBtn").addEventListener("click", async () => {
+        const btn = document.getElementById("pdfUpgradeBtn");
+        const baseUrl = document.getElementById("baseUrl").value.replace(/\/$/, "");
+        btn.disabled = true; btn.textContent = "Redirecting...";
+        try {
+          const res = await fetch(baseUrl + "/v1/billing/checkout", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ quantity: 1 })
+          });
+          if (!res.ok) { alert("Checkout error " + res.status); return; }
+          const data = await res.json();
+          if (data.url) {
+            window.location.href = data.url;
+          } else {
+            alert("No checkout URL returned. Configure Stripe keys in .env to activate.");
+          }
+        } catch (e) { alert("Network error: " + e); }
+        finally { btn.disabled = false; btn.textContent = "Upgrade to Pro →"; }
+      });
+
+      document.getElementById("sampleBtn").addEventListener("click", () => {
+        renderResults({
+          portfolio_report: {
+            names: ["test_returns_noisy", "momentum_alpha", "mean_reversion", "carry_strategy"],
+            correlation: {
+              diversification_score: 0.295,
+              average_correlation: 0.71,
+              correlation_matrix: [
+                [1.00, 0.91, 0.42, 0.33],
+                [0.91, 1.00, 0.38, 0.29],
+                [0.42, 0.38, 1.00, 0.21],
+                [0.33, 0.29, 0.21, 1.00]
+              ]
+            },
+            clustering: { cluster_count: 2 },
+            overlap:    { portfolio_overlap_risk: "HIGH" },
+            allocation: {
+              weights: [
+                { name: "test_returns_noisy", weight: 32.4 },
+                { name: "momentum_alpha",     weight: 28.1 },
+                { name: "mean_reversion",     weight: 21.7 },
+                { name: "carry_strategy",     weight: 17.8 }
+              ]
+            },
+            recommendations: {
+              summary: "Portfolio shows high overlap with limited independent diversification.",
+              bullets: [
+                "Two strategies share >0.85 correlation — treat as single sleeve.",
+                "Shift capital toward mean_reversion to improve cluster balance.",
+                "Consider adding an uncorrelated strategy before increasing total allocation."
+              ]
+            }
+          },
+          ai_commentary: {
+            portfolio_commentary: "Two strategies appear to represent the same underlying market exposure, creating concentration risk. The portfolio is effectively operating as two sleeves despite four strategy names. Diversification improves significantly when capital shifts toward the independent mean_reversion sleeve."
+          },
+          allocation_rationale: {
+            allocation_rationale: "Allocation weights reflect correlation-penalized sizing. The two high-correlation strategies receive reduced combined weight to limit single-factor exposure. The independent sleeve receives a premium allocation to maximize diversification benefit relative to portfolio risk."
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

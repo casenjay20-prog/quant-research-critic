@@ -1,0 +1,11 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+*.zip
+*.pdf
+*.db
+.env
+analyze.json
+compare.json
