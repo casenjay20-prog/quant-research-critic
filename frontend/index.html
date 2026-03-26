@@ -1,0 +1,899 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Quant Research Critic — Institutional Strategy Due Diligence</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Deterministic portfolio diagnostics and strategy due diligence for systematic traders, quant funds, and allocators." />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg:         #040d0f;
+      --bg2:        #060f12;
+      --card:       #0a1628;
+      --card-alt:   #071020;
+      --border:     #0f2a1e;
+      --border-dim: #0d1f2d;
+      --green:      #00c896;
+      --green-dim:  #065f46;
+      --green-bg:   #0f2a1e;
+      --blue:       #0ea5e9;
+      --danger:     #ef4444;
+      --warning:    #f59e0b;
+      --text:       #e8edf2;
+      --text-mid:   #94a3b8;
+      --text-dim:   #475569;
+      --mono:       'IBM Plex Mono', monospace;
+      --sans:       'IBM Plex Sans', system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,200,150,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,200,150,0.03) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 40px;
+      height: 60px;
+      background: rgba(4,13,15,0.9);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(15,74,53,0.4);
+    }
+
+    .logo {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+
+    .logo-mark {
+      width: 22px; height: 22px;
+      border: 2px solid var(--green);
+      border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .logo-mark-inner {
+      width: 8px; height: 8px;
+      background: var(--green);
+      border-radius: 1px;
+    }
+
+    .nav-actions { display: flex; gap: 12px; align-items: center; }
+
+    .btn {
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      padding: 8px 18px;
+      border-radius: 6px;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .btn-ghost { background: transparent; color: var(--text-dim); }
+    .btn-ghost:hover { color: var(--text); }
+    .btn-outline { background: transparent; border: 1px solid var(--green); color: var(--green); }
+    .btn-outline:hover { background: var(--green-bg); }
+    .btn-primary { background: var(--green); color: #040d0f; font-weight: 700; }
+    .btn-primary:hover { background: #00e5a8; transform: translateY(-1px); }
+
+    .hero {
+      position: relative; z-index: 1;
+      min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 120px 40px 80px;
+      text-align: center;
+    }
+
+    .hero-kicker {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--green);
+      margin-bottom: 28px;
+      opacity: 0;
+      animation: fadeUp 0.6s ease 0.1s both;
+      display: flex; align-items: center; gap: 12px;
+    }
+
+    .hero-kicker::before, .hero-kicker::after {
+      content: '';
+      display: block;
+      width: 32px; height: 1px;
+      background: var(--green);
+      opacity: 0.5;
+    }
+
+    .hero-title {
+      font-family: var(--mono);
+      font-size: clamp(32px, 5vw, 64px);
+      font-weight: 700;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      max-width: 900px;
+      margin-bottom: 28px;
+      opacity: 0;
+      animation: fadeUp 0.6s ease 0.2s both;
+    }
+
+    .hero-title em { font-style: normal; color: var(--green); }
+
+    .hero-sub {
+      font-family: var(--sans);
+      font-size: clamp(15px, 2vw, 18px);
+      color: var(--text-mid);
+      line-height: 1.7;
+      max-width: 640px;
+      margin-bottom: 48px;
+      opacity: 0;
+      animation: fadeUp 0.6s ease 0.3s both;
+    }
+
+    .hero-actions {
+      display: flex; gap: 14px; align-items: center; flex-wrap: wrap; justify-content: center;
+      opacity: 0;
+      animation: fadeUp 0.6s ease 0.4s both;
+      margin-bottom: 80px;
+    }
+
+    .hero-actions .btn-primary { padding: 14px 32px; font-size: 13px; }
+    .hero-actions .btn-ghost { font-size: 12px; color: var(--text-dim); }
+    .hero-actions .btn-ghost:hover { color: var(--green); }
+
+    .terminal {
+      width: 100%; max-width: 760px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      opacity: 0;
+      animation: fadeUp 0.6s ease 0.5s both;
+      box-shadow: 0 32px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,200,150,0.08);
+    }
+
+    .terminal-bar {
+      background: #071020;
+      padding: 12px 16px;
+      display: flex; align-items: center; gap: 8px;
+      border-bottom: 1px solid var(--border-dim);
+    }
+
+    .terminal-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+    .terminal-url {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-left: 8px;
+      letter-spacing: 0.04em;
+    }
+
+    .terminal-body {
+      padding: 24px;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 16px;
+    }
+
+    .terminal-metric { display: flex; flex-direction: column; gap: 6px; }
+
+    .terminal-metric-label {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    .terminal-metric-value {
+      font-family: var(--mono);
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .terminal-metric-value.good { color: var(--green); }
+    .terminal-metric-value.bad  { color: var(--danger); }
+    .terminal-metric-value.warn { color: var(--warning); }
+
+    .terminal-metric-sub { font-family: var(--mono); font-size: 10px; color: var(--text-dim); }
+
+    .terminal-verdict {
+      grid-column: 1 / -1;
+      padding: 14px 16px;
+      background: var(--green-bg);
+      border: 1px solid var(--green-dim);
+      border-radius: 6px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--green);
+      display: flex; align-items: center; gap: 10px;
+    }
+
+    .verdict-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: blink 2s ease-in-out infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+
+    .questions {
+      position: relative; z-index: 1;
+      padding: 80px 40px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .questions-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      text-align: center;
+      margin-bottom: 48px;
+      display: flex; align-items: center; gap: 16px; justify-content: center;
+    }
+
+    .questions-label::before, .questions-label::after {
+      content: '';
+      display: block;
+      width: 60px; height: 1px;
+      background: var(--border-dim);
+    }
+
+    .questions-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 2px;
+    }
+
+    .question-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      padding: 36px 32px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+
+    .question-card:first-child { border-radius: 10px 0 0 10px; }
+    .question-card:last-child  { border-radius: 0 10px 10px 0; }
+    .question-card:hover { border-color: var(--green-dim); }
+
+    .question-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--green);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .question-card:hover::before { opacity: 1; }
+
+    .question-num {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      color: var(--green);
+      margin-bottom: 16px;
+      opacity: 0.7;
+    }
+
+    .question-text {
+      font-family: var(--mono);
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.4;
+      margin-bottom: 16px;
+    }
+
+    .question-desc {
+      font-family: var(--sans);
+      font-size: 13px;
+      color: var(--text-mid);
+      line-height: 1.7;
+    }
+
+    .features {
+      position: relative; z-index: 1;
+      padding: 80px 40px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .section-header { margin-bottom: 48px; }
+
+    .section-kicker {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--green);
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-family: var(--mono);
+      font-size: clamp(24px, 3vw, 36px);
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.3;
+      max-width: 560px;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .feature-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 28px;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+
+    .feature-card:hover { border-color: var(--green-dim); transform: translateY(-2px); }
+
+    .feature-icon {
+      width: 36px; height: 36px;
+      background: var(--green-bg);
+      border: 1px solid var(--green-dim);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 18px;
+      font-size: 16px;
+    }
+
+    .feature-title {
+      font-family: var(--mono);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 10px;
+    }
+
+    .feature-desc {
+      font-family: var(--sans);
+      font-size: 13px;
+      color: var(--text-mid);
+      line-height: 1.7;
+    }
+
+    .tiers {
+      position: relative; z-index: 1;
+      padding: 80px 40px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .tiers-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 48px;
+    }
+
+    .tier-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .tier-card.featured {
+      border-color: var(--green);
+      border-top: 3px solid var(--green);
+      position: relative;
+    }
+
+    .tier-badge {
+      position: absolute;
+      top: -1px; right: 24px;
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      background: var(--green);
+      color: #040d0f;
+      padding: 3px 10px;
+      border-radius: 0 0 6px 6px;
+      font-weight: 700;
+    }
+
+    .tier-name {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+    }
+
+    .tier-price {
+      font-family: var(--mono);
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 4px;
+      line-height: 1;
+    }
+
+    .tier-price-sub {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-bottom: 28px;
+    }
+
+    .tier-features {
+      list-style: none;
+      padding: 0;
+      margin-bottom: 28px;
+      flex: 1;
+    }
+
+    .tier-features li {
+      font-family: var(--sans);
+      font-size: 13px;
+      color: var(--text-mid);
+      padding: 6px 0 6px 18px;
+      position: relative;
+      line-height: 1.6;
+    }
+
+    .tier-features li.included { color: var(--text); }
+
+    .tier-features li::before {
+      content: '—';
+      position: absolute;
+      left: 0;
+      color: var(--border-dim);
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+
+    .tier-features li.included::before { content: '✓'; color: var(--green); }
+
+    .callout {
+      position: relative; z-index: 1;
+      padding: 0 40px 80px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .callout-inner {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--green);
+      border-radius: 10px;
+      padding: 40px 48px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+      align-items: center;
+    }
+
+    .callout-title {
+      font-family: var(--mono);
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.4;
+      margin-bottom: 14px;
+    }
+
+    .callout-body {
+      font-family: var(--sans);
+      font-size: 14px;
+      color: var(--text-mid);
+      line-height: 1.8;
+    }
+
+    .callout-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    .callout-stat-value {
+      font-family: var(--mono);
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--green);
+      margin-bottom: 4px;
+    }
+
+    .callout-stat-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    .cta {
+      position: relative; z-index: 1;
+      padding: 80px 40px 120px;
+      text-align: center;
+    }
+
+    .cta-title {
+      font-family: var(--mono);
+      font-size: clamp(28px, 4vw, 48px);
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.3;
+      max-width: 640px;
+      margin: 0 auto 20px;
+    }
+
+    .cta-sub {
+      font-family: var(--sans);
+      font-size: 15px;
+      color: var(--text-mid);
+      margin-bottom: 40px;
+      max-width: 480px;
+      margin-left: auto;
+      margin-right: auto;
+      line-height: 1.7;
+    }
+
+    .cta-note {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 16px;
+      letter-spacing: 0.04em;
+    }
+
+    footer {
+      position: relative; z-index: 1;
+      border-top: 1px solid var(--border-dim);
+      padding: 32px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .footer-copy {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-dim);
+      letter-spacing: 0.04em;
+    }
+
+    .footer-links { display: flex; gap: 24px; }
+
+    .footer-links a {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-dim);
+      text-decoration: none;
+      letter-spacing: 0.04em;
+      transition: color 0.15s;
+    }
+
+    .footer-links a:hover { color: var(--green); }
+
+    .divider {
+      position: relative; z-index: 1;
+      height: 1px;
+      background: var(--border-dim);
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: none; }
+    }
+
+    @media (max-width: 900px) {
+      .questions-grid, .features-grid, .tiers-grid { grid-template-columns: 1fr; }
+      .question-card:first-child { border-radius: 10px 10px 0 0; }
+      .question-card:last-child  { border-radius: 0 0 10px 10px; }
+      .callout-inner { grid-template-columns: 1fr; }
+      .terminal-body { grid-template-columns: repeat(3, 1fr); }
+    }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+
+<body>
+
+  <nav>
+    <a href="./landing.html" class="logo">
+      <div class="logo-mark"><div class="logo-mark-inner"></div></div>
+      Quant Research Critic
+    </a>
+    <div class="nav-actions">
+      <a href="./methodology.html" class="btn btn-ghost">Methodology</a>
+      <a href="#pricing" class="btn btn-ghost">Pricing</a>
+      <a href="./app.html" class="btn btn-primary">Start Free →</a>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <div class="hero-kicker">Institutional Strategy Intelligence</div>
+    <h1 class="hero-title">
+      The risk intelligence layer between<br/>
+      <em>research and capital allocation.</em>
+    </h1>
+    <p class="hero-sub">
+      Deterministic portfolio diagnostics and strategy due diligence for systematic funds, multi-manager platforms, and institutional allocators. Math decides. AI explains.
+    </p>
+    <div class="hero-actions">
+      <a href="./app.html" class="btn btn-primary">Start Free — No signup required</a>
+      <a href="./methodology.html" class="btn btn-ghost">Read the methodology →</a>
+    </div>
+    <div class="terminal">
+      <div class="terminal-bar">
+        <div class="terminal-dot" style="background:#ef4444"></div>
+        <div class="terminal-dot" style="background:#f59e0b"></div>
+        <div class="terminal-dot" style="background:#22c55e"></div>
+        <span class="terminal-url">quantcritic.com/app — momentum_alpha.csv</span>
+      </div>
+      <div class="terminal-body">
+        <div class="terminal-metric">
+          <span class="terminal-metric-label">Deploy Score</span>
+          <span class="terminal-metric-value good">74.2</span>
+          <span class="terminal-metric-sub">/ 100</span>
+        </div>
+        <div class="terminal-metric">
+          <span class="terminal-metric-label">Sharpe</span>
+          <span class="terminal-metric-value good">1.84</span>
+          <span class="terminal-metric-sub">annualized</span>
+        </div>
+        <div class="terminal-metric">
+          <span class="terminal-metric-label">Max DD</span>
+          <span class="terminal-metric-value warn">−14.2%</span>
+          <span class="terminal-metric-sub">peak to trough</span>
+        </div>
+        <div class="terminal-metric">
+          <span class="terminal-metric-label">Fragility</span>
+          <span class="terminal-metric-value good">LOW</span>
+          <span class="terminal-metric-sub">stress test</span>
+        </div>
+        <div class="terminal-metric">
+          <span class="terminal-metric-label">Walk-Fwd</span>
+          <span class="terminal-metric-value good">PASS</span>
+          <span class="terminal-metric-sub">OOS +1.41</span>
+        </div>
+        <div class="terminal-verdict">
+          <div class="verdict-dot"></div>
+          Deployable — Meets baseline screen. Recommend 8–12% initial allocation with quarterly walk-forward review.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <section class="questions">
+    <div class="questions-label">Three questions every allocator must answer</div>
+    <div class="questions-grid">
+      <div class="question-card">
+        <div class="question-num">01 — Strategy Evaluation</div>
+        <div class="question-text">Should we deploy this strategy?</div>
+        <div class="question-desc">Deterministic scoring across Sharpe, drawdown, robustness battery, fragility index, and walk-forward validation. No black boxes — every number is reproducible.</div>
+      </div>
+      <div class="question-card">
+        <div class="question-num">02 — Monitoring</div>
+        <div class="question-text">Is this strategy degrading?</div>
+        <div class="question-desc">Rolling Sharpe drift, drawdown envelope violations, bootstrap instability, and confidence collapse detection. Know before your risk manager does.</div>
+      </div>
+      <div class="question-card">
+        <div class="question-num">03 — Portfolio Intelligence</div>
+        <div class="question-text">How does it interact with our portfolio?</div>
+        <div class="question-desc">Correlation graphs, strategy clustering, redundancy detection, and diversification scoring. Understand what you're actually allocating to.</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <section class="features">
+    <div class="section-header">
+      <div class="section-kicker">What's inside</div>
+      <div class="section-title">Every tool an allocator needs. Nothing they don't.</div>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">⚡</div>
+        <div class="feature-title">Deployability Score</div>
+        <div class="feature-desc">A single deterministic score from 0–100 that penalizes flag severity, sample size, history length, and confidence collapse. Reproducible across runs.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔬</div>
+        <div class="feature-title">Robustness Battery</div>
+        <div class="feature-desc">Bootstrap resampling, rolling window analysis, outlier stress tests, and regime sensitivity checks. Know if performance holds under pressure.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📊</div>
+        <div class="feature-title">Walk-Forward Validation</div>
+        <div class="feature-desc">Train/test rolling windows with OOS Sharpe, consistency score, and degradation signals. The closest thing to live track record analysis on historical data.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🧬</div>
+        <div class="feature-title">Fragility Index</div>
+        <div class="feature-desc">Composite fragility score measuring backtest stability under deterministic stress signals. Identifies strategies that look good on paper but fall apart in deployment.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🗂</div>
+        <div class="feature-title">Portfolio Clustering</div>
+        <div class="feature-desc">Correlation-based clustering detects redundant sleeves. Know when four strategies are really two. Overlap risk scored and flagged automatically.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🤖</div>
+        <div class="feature-title">Quant Copilot</div>
+        <div class="feature-desc">Ask natural language questions about your portfolio. Powered by Gemini with full portfolio context. "Which strategy should I cut first?" gets a real answer.</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <section class="callout">
+    <div class="callout-inner">
+      <div>
+        <div class="callout-title">Math decides.<br/>AI explains.</div>
+        <div class="callout-body">
+          Every metric is computed deterministically — the same inputs always produce the same outputs. No stochastic scoring, no model-dependent verdicts. AI commentary interprets the numbers but never generates them. Every report includes a dataset hash and deterministic provenance signature for full auditability.
+        </div>
+      </div>
+      <div class="callout-stats">
+        <div>
+          <div class="callout-stat-value">100%</div>
+          <div class="callout-stat-label">Deterministic scoring</div>
+        </div>
+        <div>
+          <div class="callout-stat-value">SHA-256</div>
+          <div class="callout-stat-label">Dataset provenance</div>
+        </div>
+        <div>
+          <div class="callout-stat-value">7+</div>
+          <div class="callout-stat-label">Robustness tests</div>
+        </div>
+        <div>
+          <div class="callout-stat-value">Free</div>
+          <div class="callout-stat-label">Full analysis tier</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <section class="tiers" id="pricing">
+    <div class="section-header">
+      <div class="section-kicker">Pricing</div>
+      <div class="section-title">Full intelligence. PDF when you need it.</div>
+    </div>
+    <div class="tiers-grid">
+      <div class="tier-card">
+        <div class="tier-name">Free</div>
+        <div class="tier-price">$0</div>
+        <div class="tier-price-sub">forever</div>
+        <ul class="tier-features">
+          <li class="included">Full strategy evaluation</li>
+          <li class="included">Portfolio intelligence engine</li>
+          <li class="included">Correlation matrix + heatmap</li>
+          <li class="included">Cluster detection</li>
+          <li class="included">AI commentary + Quant Copilot</li>
+          <li class="included">Walk-forward validation</li>
+          <li>PDF export</li>
+          <li>Allocator report</li>
+        </ul>
+        <a href="./app.html" class="btn btn-outline" style="text-align:center;width:100%">Start Free →</a>
+      </div>
+      <div class="tier-card featured">
+        <div class="tier-badge">Most Popular</div>
+        <div class="tier-name">Pro</div>
+        <div class="tier-price">$99</div>
+        <div class="tier-price-sub">per month</div>
+        <ul class="tier-features">
+          <li class="included">Everything in Free</li>
+          <li class="included">Portfolio intelligence PDF</li>
+          <li class="included">Strategy comparison PDF</li>
+          <li class="included">Allocator report — no watermark</li>
+          <li class="included">Deterministic provenance signature</li>
+          <li class="included">Saved analyses + history</li>
+          <li>API access</li>
+          <li>Team sharing</li>
+        </ul>
+        <a href="./app.html" class="btn btn-primary" style="text-align:center;width:100%">Get Pro →</a>
+      </div>
+      <div class="tier-card">
+        <div class="tier-name">Institutional</div>
+        <div class="tier-price">$500+</div>
+        <div class="tier-price-sub">per month</div>
+        <ul class="tier-features">
+          <li class="included">Everything in Pro</li>
+          <li class="included">API access</li>
+          <li class="included">Batch strategy analysis</li>
+          <li class="included">Team sharing + permissions</li>
+          <li class="included">Priority support</li>
+          <li class="included">Custom onboarding</li>
+        </ul>
+        <a href="mailto:hello@quantcritic.com" class="btn btn-outline" style="text-align:center;width:100%">Contact Us →</a>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <section class="cta">
+    <div class="cta-title">Run your first analysis in under 60 seconds.</div>
+    <div class="cta-sub">Upload a CSV of daily returns. Get a full institutional-grade diagnostic — free, no signup required.</div>
+    <a href="./app.html" class="btn btn-primary" style="padding:16px 40px;font-size:14px;">Start Free →</a>
+    <div class="cta-note">CSV format: date, returns columns. Daily frequency.</div>
+  </section>
+
+  <footer>
+    <span class="footer-copy">© 2026 Quant Research Critic. All rights reserved.</span>
+    <div class="footer-links">
+      <a href="./methodology.html">Methodology</a>
+      <a href="./app.html">App</a>
+      <a href="#pricing">Pricing</a>
+      <a href="mailto:hello@quantcritic.com">Contact</a>
+    </div>
+  </footer>
+
+</body>
+</html>
