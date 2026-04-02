@@ -377,7 +377,6 @@
       .btn-pro { background: transparent; border: 1px solid var(--warning); color: var(--warning); }
       .btn-pro:hover { background: #2d1f08; }
 
-      /* Copilot */
       .copilot-card {
         background: var(--card);
         border: 1px solid var(--green-dim);
@@ -480,7 +479,6 @@
 
       @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
 
-      /* Pricing */
       .pricing-section { margin-top: 48px; padding-top: 32px; border-top: 1px solid var(--border-dim); }
       .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 20px; }
       @media (max-width: 800px) { .pricing-grid { grid-template-columns: 1fr; } }
@@ -512,7 +510,6 @@
   </head>
 
   <body>
-    <!-- PDF Gate Modal -->
     <div class="modal-overlay" id="pdfModal">
       <div class="modal">
         <div class="modal-kicker">Pro Feature</div>
@@ -574,8 +571,7 @@
         <div class="field">
           <label>Strategy CSV Files</label>
           <div class="file-input-wrapper">
-            <input id="filePicker" type="file" accept=".csv" />
-            <button class="btn btn-outline" type="button" id="addFile">Add</button>
+            <input id="filePicker" type="file" accept=".csv" multiple />
           </div>
           <div id="fileList" class="file-list">No files added yet.</div>
         </div>
@@ -669,7 +665,6 @@
           <ul class="rec-list" id="recommendationBullets"></ul>
         </div>
 
-        <!-- QUANT COPILOT -->
         <div class="section-label">Quant Copilot</div>
         <div class="copilot-card">
           <div class="card-title">Ask anything about this portfolio</div>
@@ -790,13 +785,18 @@
         });
       }
 
-      document.getElementById("addFile").addEventListener("click", () => {
-        const picker = document.getElementById("filePicker");
-        const file = picker.files[0];
-        if (!file) { alert("Choose a file first."); return; }
-        if (selectedFiles.some(f => fileKey(f) === fileKey(file))) { alert("Already added."); picker.value = ""; return; }
-        selectedFiles.push(file);
-        picker.value = "";
+      // ── CHANGED: auto-add files on select ──
+      document.getElementById("filePicker").addEventListener("change", (e) => {
+        const files = Array.from(e.target.files || []);
+        if (!files.length) return;
+
+        files.forEach((file) => {
+          if (!selectedFiles.some(f => fileKey(f) === fileKey(file))) {
+            selectedFiles.push(file);
+          }
+        });
+
+        e.target.value = "";
         renderFileList();
       });
 
@@ -913,7 +913,6 @@
         }
       }
 
-      // ── Copilot ──
       function addCopilotMessage(role, text) {
         const container = document.getElementById("copilotMessages");
         const msg = document.createElement("div");
@@ -1007,7 +1006,6 @@
         if (e.key === "Enter") sendCopilotQuestion(document.getElementById("copilotInput").value);
       });
 
-      // Hint chips
       ["hint1", "hint2", "hint3"].forEach(id => {
         document.getElementById(id).addEventListener("click", () => {
           sendCopilotQuestion(document.getElementById(id).textContent);
@@ -1023,7 +1021,6 @@
         const recommendations = report.recommendations || {};
         const weights         = allocation.weights     || [];
 
-        // Store portfolio report for copilot
         copilotPortfolioReport = report;
         copilotHistory = [];
         clearEl(document.getElementById("copilotMessages"));
