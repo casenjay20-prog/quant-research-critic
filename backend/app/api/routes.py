@@ -5,6 +5,7 @@ import hashlib
 import io
 import json
 import os
+import zipfile
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -117,7 +118,7 @@ def _deployability_verdict(deploy_score: float) -> str:
     try:
         s = float(deploy_score)
     except Exception:
-        return "—"
+        return "N/A"
     if s >= 60:
         return "Deployable"
     if s >= 30:
@@ -137,70 +138,128 @@ async def _read_uploadfiles_once(files: List[UploadFile]) -> List[Tuple[str, byt
     return out
 
 
-def _series_from_csv_bytes(filename: str, raw: bytes) -> Tuple[str, pd.Series]:
-    try:
-        text = raw.decode("utf-8-sig")
-    except UnicodeDecodeError:
-        raise HTTPException(status_code=400, detail=f"File must be UTF-8 CSV: {filename}")
-
-    try:
-        df = pd.read_csv(io.StringIO(text))
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Could not parse CSV {filename}: {e}")
-
-    df.columns = [str(c).strip().lower() for c in df.columns]
-
-    if "date" not in df.columns or "returns" not in df.columns:
-        raise HTTPException(
-            status_code=400,
-            detail=f"CSV must contain columns: date, returns ({filename})",
-        )
-
-    df = df[["date", "returns"]].copy()
-    df["date"] = pd.to_datetime(df["date"], errors="coerce")
-    df["returns"] = pd.to_numeric(df["returns"], errors="coerce")
-    df = df.dropna().sort_values("date")
-
-    if df.empty:
-        raise HTTPException(status_code=400, detail=f"No valid rows after parsing: {filename}")
-
-    series = df.groupby("date", as_index=True)["returns"].mean()
-    return _safe_name(filename), series
+def _safe_name(filename: str) -> str:
+    name = (filename or "strategy").strip()
+    for ext in (".csv", ".xlsx", ".zip"):
+        if name.lower().endswith(ext):
+            name = name[: -len(ext)]
+            break
+    return name
 
 
 def _dataset_hash(raw: bytes) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
-def _parse_returns_csv_bytes(raw: bytes) -> np.ndarray:
-    if not raw:
-        raise HTTPException(status_code=400, detail="Empty file.")
-    try:
-        text = raw.decode("utf-8-sig")
-    except UnicodeDecodeError:
-        raise HTTPException(status_code=400, detail="File must be UTF-8 CSV.")
-
-    try:
-        df = pd.read_csv(io.StringIO(text))
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Could not parse CSV: {e}")
-
+# -------------------------
+# File parsers
+# -------------------------
+def _df_to_returns_array(df: pd.DataFrame, filename: str) -> np.ndarray:
     df.columns = [str(c).strip().lower() for c in df.columns]
     if "date" not in df.columns or "returns" not in df.columns:
-        raise HTTPException(status_code=400, detail="CSV must contain columns: date, returns")
-
+        raise ValueError(f"Must contain columns: date, returns ({filename})")
     df = df[["date", "returns"]].copy()
     df["date"] = pd.to_datetime(df["date"], errors="coerce")
     df["returns"] = pd.to_numeric(df["returns"], errors="coerce")
     df = df.dropna().sort_values("date")
     if df.empty:
-        raise HTTPException(status_code=400, detail="No valid rows after parsing.")
-
+        raise ValueError(f"No valid rows after parsing: {filename}")
     df = df.groupby("date", as_index=False)["returns"].mean()
     r = df["returns"].to_numpy(dtype=float)
     if r.size == 0:
-        raise HTTPException(status_code=400, detail="No returns values found.")
+        raise ValueError(f"No returns values found: {filename}")
     return r
+
+
+def _df_to_series(df: pd.DataFrame, filename: str) -> pd.Series:
+    df.columns = [str(c).strip().lower() for c in df.columns]
+    if "date" not in df.columns or "returns" not in df.columns:
+        raise ValueError(f"Must contain columns: date, returns ({filename})")
+    df = df[["date", "returns"]].copy()
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    df["returns"] = pd.to_numeric(df["returns"], errors="coerce")
+    df = df.dropna().sort_values("date")
+    if df.empty:
+        raise ValueError(f"No valid rows after parsing: {filename}")
+    return df.groupby("date", as_index=True)["returns"].mean()
+
+
+def _parse_returns_from_bytes(filename: str, raw: bytes) -> np.ndarray:
+    ext = filename.lower().rsplit(".", 1)[-1] if "." in filename else ""
+    try:
+        if ext == "xlsx":
+            df = pd.read_excel(io.BytesIO(raw), sheet_name=0, engine="openpyxl")
+        else:
+            text = raw.decode("utf-8-sig")
+            df = pd.read_csv(io.StringIO(text))
+        return _df_to_returns_array(df, filename)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Could not parse {filename}: {e}")
+
+
+def _series_from_bytes(filename: str, raw: bytes) -> Tuple[str, pd.Series]:
+    ext = filename.lower().rsplit(".", 1)[-1] if "." in filename else ""
+    try:
+        if ext == "xlsx":
+            df = pd.read_excel(io.BytesIO(raw), sheet_name=0, engine="openpyxl")
+        else:
+            text = raw.decode("utf-8-sig")
+            df = pd.read_csv(io.StringIO(text))
+        series = _df_to_series(df, filename)
+        return _safe_name(filename), series
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Could not parse {filename}: {e}")
+
+
+def _series_from_csv_bytes(filename: str, raw: bytes) -> Tuple[str, pd.Series]:
+    return _series_from_bytes(filename, raw)
+
+
+def _parse_returns_csv_bytes(raw: bytes) -> np.ndarray:
+    return _parse_returns_from_bytes("file.csv", raw)
+
+
+def _expand_zip_to_blobs(filename: str, raw: bytes) -> List[Tuple[str, bytes]]:
+    out: List[Tuple[str, bytes]] = []
+    try:
+        with zipfile.ZipFile(io.BytesIO(raw)) as zf:
+            for info in zf.infolist():
+                name = info.filename
+                if info.is_dir():
+                    continue
+                if "__MACOSX" in name or name.startswith(".") or "/." in name:
+                    continue
+                if name.endswith(".DS_Store"):
+                    continue
+                lower = name.lower()
+                if not (lower.endswith(".csv") or lower.endswith(".xlsx")):
+                    continue
+                try:
+                    data = zf.read(name)
+                    if data:
+                        basename = name.split("/")[-1]
+                        out.append((basename, data))
+                except Exception:
+                    continue
+    except zipfile.BadZipFile:
+        raise HTTPException(status_code=400, detail=f"Could not open ZIP file: {filename}")
+    if not out:
+        raise HTTPException(status_code=400, detail="ZIP contained no valid CSV or XLSX files.")
+    return out
+
+
+def _expand_upload_blobs(file_blobs: List[Tuple[str, bytes]]) -> List[Tuple[str, bytes]]:
+    out: List[Tuple[str, bytes]] = []
+    for filename, raw in file_blobs:
+        if filename.lower().endswith(".zip"):
+            out.extend(_expand_zip_to_blobs(filename, raw))
+        else:
+            out.append((filename, raw))
+    return out
 
 
 def _analyze_returns_array(r: np.ndarray) -> Dict[str, Any]:
@@ -251,13 +310,6 @@ def _analyze_returns_array(r: np.ndarray) -> Dict[str, Any]:
         "flags": flags,
         "critic": critic,
     }
-
-
-def _safe_name(filename: str) -> str:
-    name = (filename or "strategy").strip()
-    if name.lower().endswith(".csv"):
-        name = name[:-4]
-    return name
 
 
 def _severity_counts(flags: Any) -> Tuple[int, int]:
@@ -404,9 +456,9 @@ def _what_would_change_mind(payload: Dict[str, Any]) -> List[str]:
     years = float(payload.get("years", 0.0) or 0.0)
     out: List[str] = []
     if rows < 252:
-        out.append("Add ≥252 daily rows (≈1 year) and re-run robustness battery.")
+        out.append("Add >=252 daily rows (approx 1 year) and re-run robustness battery.")
     if years < 1.0:
-        out.append("Add ≥1.0 years of history and validate regime stability.")
+        out.append("Add >=1.0 years of history and validate regime stability.")
     out.append("Provide out-of-sample or live/paper track and re-score.")
     return out[:3]
 
@@ -433,19 +485,19 @@ def _why_it_failed(
         try:
             fi = float(fragility_index)
             if fi >= 67:
-                bullets.append("Fragility: High — backtest appears unstable under deterministic stress signals.")
+                bullets.append("Fragility: High - backtest appears unstable under deterministic stress signals.")
             elif fi >= 34:
-                bullets.append("Fragility: Medium — regime sensitivity risk; validate before sizing.")
+                bullets.append("Fragility: Medium - regime sensitivity risk; validate before sizing.")
         except Exception:
             pass
 
     if robustness and (robustness.get("overall_pass") is False):
-        bullets.append("Robustness battery: FAIL — one or more stress tests did not pass conservative thresholds.")
+        bullets.append("Robustness battery: FAIL - one or more stress tests did not pass conservative thresholds.")
 
     if walk_forward_result and (walk_forward_result.get("overall_pass") is False):
         cons = walk_forward_result.get("consistency_score", 0.0)
         oos_sh = walk_forward_result.get("oos_sharpe", 0.0)
-        bullets.append(f"Walk-forward: FAIL — {cons:.0%} periods profitable, OOS Sharpe {oos_sh:+.2f}.")
+        bullets.append(f"Walk-forward: FAIL - {cons:.0%} periods profitable, OOS Sharpe {oos_sh:+.2f}.")
 
     for r in (top_risks or [])[:2]:
         bullets.append(r)
@@ -504,7 +556,8 @@ def root() -> Dict[str, Any]:
 @router.post("/v1/analyze")
 async def analyze(file: UploadFile = File(...)) -> Dict[str, Any]:
     raw = await file.read()
-    r = _parse_returns_csv_bytes(raw)
+    filename = file.filename or "strategy.csv"
+    r = _parse_returns_from_bytes(filename, raw)
     payload = _analyze_returns_array(r)
     diligence_summary = generate_strategy_diligence_summary(payload)
     walk_forward_result = compute_walk_forward(r)
@@ -526,7 +579,8 @@ async def analyze(file: UploadFile = File(...)) -> Dict[str, Any]:
 @router.post("/v1/report/pdf")
 async def report_pdf(file: UploadFile = File(...)) -> Response:
     raw = await file.read()
-    r = _parse_returns_csv_bytes(raw)
+    filename = file.filename or "strategy.csv"
+    r = _parse_returns_from_bytes(filename, raw)
     payload = _analyze_returns_array(r)
 
     verdict = build_verdict(payload)
@@ -552,11 +606,15 @@ async def report_pdf(file: UploadFile = File(...)) -> Response:
 @router.post("/v1/compare", response_model=List[StrategySummary])
 async def compare(files: List[UploadFile] = File(...)) -> List[StrategySummary]:
     file_blobs = await _read_uploadfiles_once(files)
+    file_blobs = _expand_upload_blobs(file_blobs)
 
     results: List[StrategySummary] = []
     for filename, raw in file_blobs:
-        r = _parse_returns_csv_bytes(raw)
-        payload = _analyze_returns_array(r)
+        try:
+            r = _parse_returns_from_bytes(filename, raw)
+            payload = _analyze_returns_array(r)
+        except Exception:
+            continue
 
         key_metrics = select_key_metrics(payload)
         top_flags = select_top_flags(payload)
@@ -581,7 +639,7 @@ async def compare(files: List[UploadFile] = File(...)) -> List[StrategySummary]:
                 deployability_verdict=verdict,
                 score=float(scorecard.get("score", 0.0) or 0.0),
                 grade=str(scorecard.get("grade", "") or ""),
-                allocation_band=str(lens.get("allocation_band", "—") or "—"),
+                allocation_band=str(lens.get("allocation_band", "N/A") or "N/A"),
                 rows=int(payload.get("rows", 0) or 0),
                 years=float(payload.get("years", 0.0) or 0.0),
                 confidence=confidence_f,
@@ -617,11 +675,15 @@ async def compare_allocator_pdf(
     _require_paid_api_key(x_api_key, api_key)
 
     file_blobs = await _read_uploadfiles_once(files)
+    file_blobs = _expand_upload_blobs(file_blobs)
 
     ranked: List[Tuple[str, StrategySummary, np.ndarray, Dict[str, Any], str]] = []
     for filename, raw in file_blobs:
-        r = _parse_returns_csv_bytes(raw)
-        payload = _analyze_returns_array(r)
+        try:
+            r = _parse_returns_from_bytes(filename, raw)
+            payload = _analyze_returns_array(r)
+        except Exception:
+            continue
 
         key_metrics = select_key_metrics(payload)
         top_flags = select_top_flags(payload)
@@ -645,7 +707,7 @@ async def compare_allocator_pdf(
             deployability_verdict=verdict,
             score=float(scorecard.get("score", 0.0) or 0.0),
             grade=str(scorecard.get("grade", "") or ""),
-            allocation_band=str(lens.get("allocation_band", "—") or "—"),
+            allocation_band=str(lens.get("allocation_band", "N/A") or "N/A"),
             rows=int(payload.get("rows", 0) or 0),
             years=float(payload.get("years", 0.0) or 0.0),
             confidence=confidence_f,
@@ -655,6 +717,9 @@ async def compare_allocator_pdf(
             memo_line=_memo_line(payload, float(deploy)),
         )
         ranked.append((filename, s, r, payload, _dataset_hash(raw)))
+
+    if not ranked:
+        raise HTTPException(status_code=400, detail="No valid strategies could be parsed.")
 
     ranked.sort(key=lambda t: t[1].deployability_score, reverse=True)
     _top_filename, top_summary, top_returns, top_payload, top_datahash = ranked[0]
@@ -743,11 +808,6 @@ async def compare_allocator_pdf(
     top["returns"] = top_returns.astype(float).tolist()
     top["freq_per_year"] = 252
 
-    # -------------------------
-    # Tier 3 persistence (Option A soft-delete):
-    # intentionally NOT called.
-    # -------------------------
-
     pdf_bytes = build_allocator_view_pdf(strategy=top, signature=signature)
     return Response(
         content=pdf_bytes,
@@ -759,11 +819,18 @@ async def compare_allocator_pdf(
 @router.post("/v1/portfolio/analyze")
 async def portfolio_analyze(files: List[UploadFile] = File(...)) -> Dict[str, Any]:
     file_blobs = await _read_uploadfiles_once(files)
+    file_blobs = _expand_upload_blobs(file_blobs)
 
     strategies_for_report = []
     for filename, raw in file_blobs:
-        name, series = _series_from_csv_bytes(filename, raw)
-        strategies_for_report.append((name, series))
+        try:
+            name, series = _series_from_bytes(filename, raw)
+            strategies_for_report.append((name, series))
+        except Exception:
+            continue
+
+    if not strategies_for_report:
+        raise HTTPException(status_code=400, detail="No valid strategies could be parsed.")
 
     try:
         report = build_portfolio_report(strategies_for_report)
@@ -786,11 +853,18 @@ async def portfolio_analyze(files: List[UploadFile] = File(...)) -> Dict[str, An
 @router.post("/v1/portfolio/pdf")
 async def portfolio_pdf(files: List[UploadFile] = File(...)) -> Response:
     file_blobs = await _read_uploadfiles_once(files)
+    file_blobs = _expand_upload_blobs(file_blobs)
 
     strategies_for_report = []
     for filename, raw in file_blobs:
-        name, series = _series_from_csv_bytes(filename, raw)
-        strategies_for_report.append((name, series))
+        try:
+            name, series = _series_from_bytes(filename, raw)
+            strategies_for_report.append((name, series))
+        except Exception:
+            continue
+
+    if not strategies_for_report:
+        raise HTTPException(status_code=400, detail="No valid strategies could be parsed.")
 
     try:
         report = build_portfolio_report(strategies_for_report)
@@ -816,15 +890,19 @@ async def portfolio_diversification_score(
     candidate_file: UploadFile = File(...),
 ) -> Dict[str, Any]:
     current_file_blobs = await _read_uploadfiles_once(current_files)
+    current_file_blobs = _expand_upload_blobs(current_file_blobs)
     candidate_raw = await candidate_file.read()
     if not candidate_raw:
         raise HTTPException(status_code=400, detail=f"Empty file: {candidate_file.filename}")
 
     current_strategies: List[Tuple[str, pd.Series]] = []
     for filename, raw in current_file_blobs:
-        current_strategies.append(_series_from_csv_bytes(filename, raw))
+        try:
+            current_strategies.append(_series_from_bytes(filename, raw))
+        except Exception:
+            continue
 
-    candidate_strategy = _series_from_csv_bytes(candidate_file.filename or "candidate.csv", candidate_raw)
+    candidate_strategy = _series_from_bytes(candidate_file.filename or "candidate.csv", candidate_raw)
     candidate_strategies = current_strategies + [candidate_strategy]
 
     try:
@@ -851,14 +929,18 @@ async def portfolio_replacement_test(
     candidate_file: UploadFile = File(...),
 ) -> Dict[str, Any]:
     current_file_blobs = await _read_uploadfiles_once(current_files)
+    current_file_blobs = _expand_upload_blobs(current_file_blobs)
     candidate_raw = await candidate_file.read()
 
     strategies_for_report = []
     for filename, raw in current_file_blobs:
-        name, series = _series_from_csv_bytes(filename, raw)
-        strategies_for_report.append((name, series))
+        try:
+            name, series = _series_from_bytes(filename, raw)
+            strategies_for_report.append((name, series))
+        except Exception:
+            continue
 
-    candidate_name, candidate_series = _series_from_csv_bytes(
+    candidate_name, candidate_series = _series_from_bytes(
         candidate_file.filename or "candidate.csv",
         candidate_raw,
     )
@@ -881,10 +963,6 @@ async def portfolio_replacement_test(
 # -------------------------
 @router.post("/v1/portfolio/copilot")
 async def portfolio_copilot(req: CopilotRequest) -> Dict[str, Any]:
-    """
-    Quant Copilot — answers follow-up questions about a specific portfolio.
-    Receives the portfolio report and conversation history as context.
-    """
     if not req.question or not req.question.strip():
         raise HTTPException(status_code=400, detail="Question cannot be empty.")
 
@@ -910,7 +988,8 @@ async def portfolio_copilot(req: CopilotRequest) -> Dict[str, Any]:
 @router.post("/v1/walk-forward")
 async def walk_forward(file: UploadFile = File(...)) -> Dict[str, Any]:
     raw = await file.read()
-    r = _parse_returns_csv_bytes(raw)
+    filename = file.filename or "strategy.csv"
+    r = _parse_returns_from_bytes(filename, raw)
     result = compute_walk_forward(r)
     sig = _walk_forward_signature(result, raw)
 
@@ -969,31 +1048,9 @@ async def billing_checkout(req: CheckoutRequest) -> Dict[str, str]:
 
 @router.get("/success", response_class=HTMLResponse)
 def billing_success() -> str:
-    return "<html><body><h1>Payment successful ✅</h1><p><a href='/'>Back</a></p></body></html>"
+    return "<html><body><h1>Payment successful</h1><p><a href='/'>Back</a></p></body></html>"
 
 
 @router.get("/cancel", response_class=HTMLResponse)
 def billing_cancel() -> str:
     return "<html><body><h1>Checkout canceled</h1><p><a href='/'>Back</a></p></body></html>"
-
-
-# -------------------------
-# Verification curl steps
-# -------------------------
-# Copilot test:
-# curl -sS -X POST "http://127.0.0.1:8000/v1/portfolio/copilot" \
-#   -H "Content-Type: application/json" \
-#   -d '{"question": "Which strategy is most at risk of being cut?", "portfolio_report": {}}' \
-#   | python3 -m json.tool
-#
-# Walk-forward standalone:
-# curl -sS -X POST "http://127.0.0.1:8000/v1/walk-forward" \
-#   -F "file=@test_returns_1y.csv" | python3 -m json.tool
-#
-# Tier 3 portfolio analyze:
-# curl -sS -X POST "http://127.0.0.1:8000/v1/portfolio/analyze" \
-#   -F "files=@test_returns_1y.csv" \
-#   -F "files=@another_returns.csv" | python3 -m json.tool
-#
-# Tier 3 health:
-# curl -sS "http://127.0.0.1:8000/v1/tier3/health" | python3 -m json.tool
