@@ -506,7 +506,8 @@
         Quant Research Critic
       </div>
       <div class="header-actions">
-        <button class="btn btn-outline" id="run">Analyze Portfolio</button>
+        <button class="btn btn-outline" id="sampleBtn">Try Sample Portfolio</button>
+        <button class="btn btn-primary" id="run">Analyze Portfolio</button>
         <button class="btn btn-outline" id="downloadPdf" style="display:none;">↓ Download PDF</button>
       </div>
     </header>
@@ -533,7 +534,7 @@
 
       <div class="upload-panel">
         <div class="field">
-          <label>Strategy Files</label>
+          <label>Upload Strategy Files</label>
           <div class="file-input-wrapper">
             <input id="filePicker" type="file" accept=".csv,.xlsx,.zip" multiple />
           </div>
@@ -702,6 +703,8 @@
       let copilotPortfolioReport = null;
       let copilotHistory = [];
 
+      const runBtn = document.getElementById("run");
+
       function pct(x) { return (Number(x) * 100).toFixed(1) + "%"; }
       function setText(id, v) { document.getElementById(id).textContent = v; }
       function clearEl(el) { while (el.firstChild) el.removeChild(el.firstChild); }
@@ -724,8 +727,18 @@
 
       function renderFileList() {
         const el = document.getElementById("fileList");
+        const emptyHint = document.getElementById("emptyHint");
         clearEl(el);
-        if (!selectedFiles.length) { el.textContent = "No files added yet."; return; }
+        if (!selectedFiles.length) {
+          el.textContent = "No files added yet.";
+          emptyHint.style.display = "block";
+          emptyHint.textContent = "↓ Upload CSV, XLSX, or ZIP files to begin analysis";
+          runBtn.disabled = true;
+          return;
+        }
+        emptyHint.style.display = "block";
+        emptyHint.textContent = "Files ready. Click Analyze Portfolio.";
+        runBtn.disabled = false;
         selectedFiles.forEach((f, i) => {
           const row = document.createElement("div");
           row.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 0;";
@@ -745,6 +758,9 @@
           el.appendChild(row);
         });
       }
+
+      // Initialize button as disabled
+      runBtn.disabled = true;
 
       document.getElementById("filePicker").addEventListener("change", (e) => {
         const files = Array.from(e.target.files || []);
@@ -1017,19 +1033,64 @@
         setText("recommendationSummary", recommendations.summary || "No recommendation summary available.");
         renderBullets(recommendations.bullets || []);
       }
-
-      document.getElementById("run").addEventListener("click", async () => {
-        const btn = document.getElementById("run");
-        if (!selectedFiles.length) { alert("Upload at least one file to begin."); return; }
-        btn.disabled = true; btn.textContent = "Analyzing...";
+      document.getElementById("sampleBtn").addEventListener("click", () => {
+  renderResults({
+    portfolio_report: {
+      names: ["test_returns_noisy", "momentum_alpha", "mean_reversion", "carry_strategy"],
+      correlation: {
+        diversification_score: 0.295,
+        average_correlation: 0.71,
+        correlation_matrix: [
+          [1.00, 0.91, 0.42, 0.33],
+          [0.91, 1.00, 0.38, 0.29],
+          [0.42, 0.38, 1.00, 0.21],
+          [0.33, 0.29, 0.21, 1.00]
+        ]
+      },
+      clustering: { cluster_count: 2 },
+      overlap: { portfolio_overlap_risk: "HIGH" },
+      allocation: {
+        weights: [
+          { name: "test_returns_noisy", weight: 32.4 },
+          { name: "momentum_alpha", weight: 28.1 },
+          { name: "mean_reversion", weight: 21.7 },
+          { name: "carry_strategy", weight: 17.8 }
+        ]
+      },
+      recommendations: {
+        summary: "Portfolio shows high overlap with limited independent diversification.",
+        bullets: [
+          "Two strategies share >0.85 correlation — treat as single sleeve.",
+          "Shift capital toward mean_reversion to improve cluster balance.",
+          "Consider adding an uncorrelated strategy before increasing total allocation."
+        ]
+      }
+    },
+    ai_commentary: {
+      portfolio_commentary: "Two strategies appear to represent the same underlying market exposure, creating concentration risk. The portfolio is effectively operating as two sleeves despite four strategy names. Diversification improves significantly when capital shifts toward the independent mean_reversion sleeve."
+    },
+    allocation_rationale: {
+      allocation_rationale: "Allocation weights reflect correlation-penalized sizing. The two high-correlation strategies receive reduced combined weight to limit single-factor exposure. The independent sleeve receives a premium allocation to maximize diversification benefit relative to portfolio risk."
+    }
+  });
+});
+      runBtn.addEventListener("click", async () => {
+        runBtn.disabled = true; runBtn.textContent = "Analyzing...";
         const form = new FormData();
         for (const file of selectedFiles) form.append("files", file);
         try {
           const res = await fetch(BASE_URL + "/v1/portfolio/analyze", { method: "POST", body: form });
-          if (!res.ok) { alert("Error " + res.status + ": " + await res.text()); return; }
+          if (!res.ok) {
+            alert("Analysis failed. Please check your files and try again.");
+            return;
+          }
           renderResults(await res.json());
-        } catch (e) { alert("Network error: " + e); }
-        finally { btn.disabled = false; btn.textContent = "Analyze Portfolio"; }
+        } catch (e) {
+          alert("Something went wrong. Please try again.");
+        } finally {
+          runBtn.disabled = !selectedFiles.length;
+          runBtn.textContent = "Analyze Portfolio";
+        }
       });
 
       document.getElementById("downloadPdf").addEventListener("click", () => {
@@ -1055,14 +1116,14 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ quantity: 1 })
           });
-          if (!res.ok) { alert("Checkout error " + res.status); return; }
+          if (!res.ok) { alert("Checkout is not available yet. Please check back soon."); return; }
           const data = await res.json();
           if (data.url) {
             window.location.href = data.url;
           } else {
             alert("Stripe is not configured yet. Check back soon.");
           }
-        } catch (e) { alert("Network error: " + e); }
+        } catch (e) { alert("Something went wrong. Please try again."); }
         finally { btn.disabled = false; btn.textContent = "Upgrade to Pro →"; }
       });
     </script>
