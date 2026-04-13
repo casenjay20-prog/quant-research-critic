@@ -37,10 +37,12 @@ def _call_gemini(prompt: str, fallback: str) -> str:
     try:
         model = _get_gemini_client()
         if not model:
+            print("GEMINI: no client — API key missing or import failed")
             return fallback
         response = model.generate_content(prompt)
         return response.text.strip()
-    except Exception:
+    except Exception as e:
+        print(f"GEMINI ERROR: {e}")
         return fallback
 
 
@@ -201,10 +203,6 @@ def generate_copilot_response(
     portfolio_report: Dict[str, Any],
     conversation_history: List[Dict[str, str]] = None
 ) -> str:
-    """
-    Quant Copilot — answers follow-up questions about the specific portfolio.
-    Receives the full deterministic portfolio report as context.
-    """
     if conversation_history is None:
         conversation_history = []
 
