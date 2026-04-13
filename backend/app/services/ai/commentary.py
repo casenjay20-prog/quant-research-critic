@@ -23,23 +23,27 @@ def _format_pct_from_unit(value: float) -> str:
 
 def _get_gemini_client():
     try:
-        import google.generativeai as genai
+        from google import genai
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
             return None
-        genai.configure(api_key=api_key)
-        return genai.GenerativeModel("gemini-1.5-flash")
-    except Exception:
+        client = genai.Client(api_key=api_key)
+        return client
+    except Exception as e:
+        print(f"GEMINI CLIENT ERROR: {e}")
         return None
 
 
 def _call_gemini(prompt: str, fallback: str) -> str:
     try:
-        model = _get_gemini_client()
-        if not model:
+        client = _get_gemini_client()
+        if not client:
             print("GEMINI: no client — API key missing or import failed")
             return fallback
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt,
+        )
         return response.text.strip()
     except Exception as e:
         print(f"GEMINI ERROR: {e}")
