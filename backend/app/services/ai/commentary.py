@@ -40,11 +40,18 @@ def _call_gemini(prompt: str, fallback: str) -> str:
         if not client:
             print("GEMINI: no client — API key missing or import failed")
             return fallback
+
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-2.0-flash-lite",
             contents=prompt,
         )
+
+        if not response or not getattr(response, "text", None):
+            print("GEMINI: empty response")
+            return fallback
+
         return response.text.strip()
+
     except Exception as e:
         print(f"GEMINI ERROR: {e}")
         return fallback
