@@ -39,22 +39,22 @@ def _call_gemini(prompt: str, fallback: str) -> str:
         client = _get_gemini_client()
         if not client:
             print("GEMINI: no client — API key missing or import failed")
-            return fallback
+            return "Copilot is temporarily unavailable. Please try again in a moment."
 
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-flash-latest",
             contents=prompt,
         )
 
         if not response or not getattr(response, "text", None):
             print("GEMINI: empty response")
-            return fallback
+            return "Copilot is temporarily unavailable. Please try again in a moment."
 
         return response.text.strip()
 
     except Exception as e:
         print(f"GEMINI ERROR: {e}")
-        return fallback
+        return "Copilot is temporarily unavailable. Please try again in a moment."
 
 
 def generate_portfolio_commentary(portfolio_report: Dict[str, Any]) -> Dict[str, str]:
