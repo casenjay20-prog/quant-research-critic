@@ -275,6 +275,14 @@ Do not use bullet points unless listing specific strategies.
 Do not mention that you are an AI or that you are using a language model.
 Write as a senior quant analyst would speak."""
 
-    fallback = "I don't have enough information to answer that question based on the current portfolio data."
+    fallback = f"""Here is what I can say based on the current portfolio:
+
+Average correlation is {avg_corr:.2f} with {_format_pct_from_unit(diversification_score)} diversification and {overlap_risk.lower()} overlap risk.
+
+Top allocations: {weights_str if weights_str else "N/A"}.
+
+{rec_summary if rec_summary else ""}
+
+Your question likely requires strategy-level or additional data not currently included in the portfolio report."""
 
     return _call_gemini(prompt, fallback)
