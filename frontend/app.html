@@ -460,6 +460,16 @@
       .pricing-features li { font-family: var(--sans); font-size: 12px; color: var(--text-mid); padding: 5px 0 5px 14px; border-left: 2px solid var(--border-dim); margin-bottom: 5px; line-height: 1.6; }
       .pricing-features li.included { border-left-color: var(--green); color: var(--text); }
 
+      .saved-list { list-style: none; padding: 0; margin: 0 0 20px 0; max-height: 320px; overflow-y: auto; }
+      .saved-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border-dim); }
+      .saved-item:last-child { border-bottom: none; }
+      .saved-item-time { font-family: var(--mono); font-size: 11px; color: var(--text-mid); flex: 1; }
+      .saved-item-actions { display: flex; gap: 8px; }
+      .saved-item-btn { font-family: var(--mono); font-size: 10px; padding: 4px 10px; border-radius: 4px; cursor: pointer; border: 1px solid var(--border-dim); background: var(--card-alt); color: var(--text-dim); }
+      .saved-item-open:hover { border-color: var(--green); color: var(--green); }
+      .saved-item-export:hover { border-color: var(--blue); color: var(--blue); }
+      .saved-item-delete:hover { border-color: var(--danger); color: var(--danger); }
+
       @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
       ::-webkit-scrollbar { width: 6px; height: 6px; }
       ::-webkit-scrollbar-track { background: var(--bg); }
@@ -500,6 +510,24 @@
       </div>
     </div>
 
+    <div class="modal-overlay" id="savedModal">
+      <div class="modal">
+        <div class="modal-kicker">Saved Analyses</div>
+        <div class="modal-title">Your Analyses</div>
+        <div class="modal-body" id="savedModalEmpty" style="display:none;">
+          No saved analyses yet. Run an analysis and click Save.
+        </div>
+        <ul class="saved-list" id="savedList"></ul>
+        <div class="modal-actions" style="justify-content:space-between;align-items:center;">
+          <label class="btn btn-outline" style="cursor:pointer;">
+            Import .json
+            <input type="file" id="importJsonInput" accept=".json" style="display:none;" />
+          </label>
+          <button class="modal-close" id="savedModalCloseBtn">Close</button>
+        </div>
+      </div>
+    </div>
+
     <header>
       <div class="logo">
         <div class="logo-mark"><div class="logo-mark-inner"></div></div>
@@ -510,7 +538,7 @@
         <button class="btn btn-primary" id="run">Analyze Portfolio</button>
         <button class="btn btn-outline" id="saveAnalysis" style="display:none;">Save Analysis</button>
         <button class="btn btn-outline" id="savedAnalysesBtn">Saved Analyses</button>
-      <button class="btn btn-outline" id="downloadPdf" style="display:none;">↓ Download PDF</button>
+        <button class="btn btn-outline" id="downloadPdf" style="display:none;">↓ Download PDF</button>
       </div>
     </header>
 
@@ -689,7 +717,7 @@
               <li class="included">Batch analysis</li>
               <li class="included">Team sharing (coming soon)</li>
               <li class="included">Priority support (coming soon)</li>
-              <li class="included">Custom onboarding (coming soon) </li>
+              <li class="included">Custom onboarding (coming soon)</li>
             </ul>
           </div>
         </div>
@@ -699,26 +727,26 @@
 
     <script>
       const BASE_URL = "https://quant-research-critic-production.up.railway.app";
-    
+
       const selectedFiles = [];
       const opacities = [1, 0.85, 0.7, 0.55];
       let copilotPortfolioReport = null;
       let copilotHistory = [];
       let latestAnalysis = null;
-    
+
       const runBtn = document.getElementById("run");
-    
+
       function pct(x) { return (Number(x) * 100).toFixed(1) + "%"; }
       function setText(id, v) { document.getElementById(id).textContent = v; }
       function clearEl(el) { while (el.firstChild) el.removeChild(el.firstChild); }
       function fileKey(f) { return f.name + "__" + f.size + "__" + f.lastModified; }
-    
+
       function overlapBadgeClass(r) { return r === "HIGH" ? "high" : r === "MEDIUM" ? "medium" : "low"; }
       function overlapTagClass(r)   { return r === "HIGH" ? "tag-danger" : r === "MEDIUM" ? "tag-warn" : "tag-green"; }
       function divClass(s)  { return s < 0.35 ? "tag-danger" : s < 0.6 ? "tag-warn" : "tag-green"; }
       function divLabel(s)  { return s < 0.35 ? "Low Diversification" : s < 0.6 ? "Moderate Diversification" : "Well Diversified"; }
       function divShort(s)  { return s < 0.35 ? "Weak" : s < 0.6 ? "Moderate" : "Strong"; }
-    
+
       function corrColor(v) {
         const n = Number(v);
         if (n >= 0.9)  return "rgba(239,68,68,0.85)";
@@ -727,7 +755,7 @@
         if (n >= 0.25) return "rgba(14,165,233,0.45)";
         return "rgba(0,200,150,0.35)";
       }
-    
+
       function renderFileList() {
         const el = document.getElementById("fileList");
         const emptyHint = document.getElementById("emptyHint");
@@ -761,9 +789,9 @@
           el.appendChild(row);
         });
       }
-    
+
       runBtn.disabled = true;
-    
+
       document.getElementById("filePicker").addEventListener("change", (e) => {
         const files = Array.from(e.target.files || []);
         if (!files.length) return;
@@ -776,7 +804,7 @@
         e.target.value = "";
         renderFileList();
       });
-    
+
       function buildHeadline(parts) {
         const el = document.getElementById("summaryHeadline");
         clearEl(el);
@@ -792,7 +820,7 @@
           }
         });
       }
-    
+
       function renderWeights(weights) {
         const el = document.getElementById("weights");
         clearEl(el);
@@ -811,7 +839,7 @@
           el.appendChild(row);
         });
       }
-    
+
       function renderBarChart(weights) {
         const el = document.getElementById("barChart");
         clearEl(el);
@@ -828,7 +856,7 @@
           el.appendChild(col);
         });
       }
-    
+
       function renderHeatmap(names, matrix) {
         const container = document.getElementById("heatmap");
         clearEl(container);
@@ -855,13 +883,13 @@
         });
         container.appendChild(grid);
       }
-    
+
       function renderBullets(bullets) {
         const el = document.getElementById("recommendationBullets");
         clearEl(el);
         (bullets || []).forEach(b => { const li = document.createElement("li"); li.textContent = String(b); el.appendChild(li); });
       }
-    
+
       function setupExpandBtn(bodyId, btnId, fullText) {
         const bodyEl = document.getElementById(bodyId);
         const btn = document.getElementById(btnId);
@@ -881,7 +909,7 @@
           btn.style.display = "none";
         }
       }
-    
+
       function addCopilotMessage(role, text) {
         const container = document.getElementById("copilotMessages");
         const msg = document.createElement("div");
@@ -898,7 +926,7 @@
         container.scrollTop = container.scrollHeight;
         return body;
       }
-    
+
       function addCopilotThinking() {
         const container = document.getElementById("copilotMessages");
         const msg = document.createElement("div");
@@ -915,7 +943,7 @@
         container.scrollTop = container.scrollHeight;
         return msg;
       }
-    
+
       async function sendCopilotQuestion(question) {
         if (!question.trim()) return;
         if (!copilotPortfolioReport) {
@@ -953,24 +981,24 @@
           sendBtn.disabled = false;
         }
       }
-    
+
       document.getElementById("copilotSend").addEventListener("click", () => {
         sendCopilotQuestion(document.getElementById("copilotInput").value);
       });
-    
+
       document.getElementById("copilotInput").addEventListener("keydown", (e) => {
         if (e.key === "Enter") sendCopilotQuestion(document.getElementById("copilotInput").value);
       });
-    
+
       ["hint1", "hint2", "hint3"].forEach(id => {
         document.getElementById(id).addEventListener("click", () => {
           sendCopilotQuestion(document.getElementById(id).textContent);
         });
       });
-    
+
       function renderResults(data) {
         latestAnalysis = data;
-    
+
         const report          = data.portfolio_report  || {};
         const correlation     = report.correlation     || {};
         const clustering      = report.clustering      || {};
@@ -978,32 +1006,32 @@
         const allocation      = report.allocation      || {};
         const recommendations = report.recommendations || {};
         const weights         = allocation.weights     || [];
-    
+
         copilotPortfolioReport = report;
         copilotHistory = [];
         clearEl(document.getElementById("copilotMessages"));
-    
+
         document.getElementById("results").style.display = "block";
         document.getElementById("emptyHint").style.display = "none";
         document.getElementById("downloadPdf").style.display = "inline-block";
         document.getElementById("saveAnalysis").style.display = "inline-block";
-    
+
         const divScoreRaw = Number(correlation.diversification_score || 0);
         const overlapRisk = String(overlap.portfolio_overlap_risk || "N/A").toUpperCase();
         const topWeight   = weights.length ? weights.reduce((a, b) => Number(a.weight) > Number(b.weight) ? a : b) : null;
-    
+
         const dDiv = document.getElementById("diagDiversification");
         dDiv.textContent = divShort(divScoreRaw);
         dDiv.className = "diag-value " + (divScoreRaw < 0.35 ? "danger" : divScoreRaw < 0.6 ? "warning" : "good");
-    
+
         const dOv = document.getElementById("diagOverlap");
         dOv.textContent = overlapRisk;
         dOv.className = "diag-value " + (overlapRisk === "HIGH" ? "danger" : overlapRisk === "MEDIUM" ? "warning" : "good");
-    
+
         setText("diagClusters", String(clustering.cluster_count || 0));
         setText("diagBest", topWeight ? String(topWeight.name) : "—");
         setText("diagCorr", Number(correlation.average_correlation || 0).toFixed(2));
-    
+
         setText("divScore", pct(divScoreRaw));
         setText("avgCorr", "Avg correlation: " + Number(correlation.average_correlation || 0).toFixed(2));
         const divTagEl = document.getElementById("divTag"); divTagEl.className = "tag " + divClass(divScoreRaw); divTagEl.textContent = divLabel(divScoreRaw);
@@ -1014,31 +1042,31 @@
         ovTag.textContent = overlapRisk === "HIGH" ? "Significant Overlap" : overlapRisk === "MEDIUM" ? "Moderate Overlap" : "Low Overlap";
         setText("topHoldingPct", topWeight ? Number(topWeight.weight).toFixed(1) + "%" : "—");
         setText("topHoldingName", topWeight ? String(topWeight.name) : "");
-    
+
         const divLabelShort = divScoreRaw < 0.35 ? "Weak diversification" : divScoreRaw < 0.6 ? "Moderate diversification" : "Strong diversification";
         const overlapLabel  = overlapRisk === "HIGH" ? "High overlap" : overlapRisk === "MEDIUM" ? "Moderate overlap" : "Low overlap";
         const clusterLabel  = (clustering.cluster_count || 0) + " clusters detected";
         const bestSleeve    = topWeight ? "Best sleeve: " + String(topWeight.name) : "";
         buildHeadline([divLabelShort, overlapLabel, clusterLabel, bestSleeve].filter(Boolean));
-    
+
         const commentaryText = (data.ai_commentary && data.ai_commentary.portfolio_commentary)
           ? String(data.ai_commentary.portfolio_commentary) : "No AI commentary available.";
         const shortNarrative = commentaryText.split(".").map(s => s.trim()).filter(Boolean).slice(0, 2).join(". ");
         setText("summaryNarrative", shortNarrative ? shortNarrative + "." : "");
-    
+
         const rationaleText = (data.allocation_rationale && data.allocation_rationale.allocation_rationale)
           ? String(data.allocation_rationale.allocation_rationale) : "No allocation rationale available.";
-    
+
         setupExpandBtn("aiCommentary", "aiExpandBtn", commentaryText);
         setupExpandBtn("allocationRationale", "allocExpandBtn", rationaleText);
-    
+
         renderWeights(weights);
         renderBarChart(weights);
         renderHeatmap(report.names || [], correlation.correlation_matrix || []);
         setText("recommendationSummary", recommendations.summary || "No recommendation summary available.");
         renderBullets(recommendations.bullets || []);
       }
-    
+
       document.getElementById("sampleBtn").addEventListener("click", () => {
         renderResults({
           portfolio_report: {
@@ -1080,7 +1108,7 @@
           }
         });
       });
-    
+
       runBtn.addEventListener("click", async () => {
         runBtn.disabled = true; runBtn.textContent = "Analyzing...";
         const form = new FormData();
@@ -1099,61 +1127,155 @@
           runBtn.textContent = "Analyze Portfolio";
         }
       });
-    
+
       document.getElementById("downloadPdf").addEventListener("click", () => {
         document.getElementById("pdfModal").classList.add("visible");
       });
-    
+
       document.getElementById("pdfModalCloseBtn").addEventListener("click", () => {
         document.getElementById("pdfModal").classList.remove("visible");
       });
-    
+
       document.getElementById("pdfModal").addEventListener("click", (e) => {
         if (e.target === document.getElementById("pdfModal")) {
           document.getElementById("pdfModal").classList.remove("visible");
         }
       });
-    
+
       const saveAnalysisBtn = document.getElementById("saveAnalysis");
       const savedAnalysesBtn = document.getElementById("savedAnalysesBtn");
-    
+
+      function getSaved() {
+        try {
+          return JSON.parse(localStorage.getItem("savedAnalyses") || "[]");
+        } catch (e) {
+          return [];
+        }
+      }
+
+      function setSaved(arr) {
+        localStorage.setItem("savedAnalyses", JSON.stringify(arr));
+      }
+
       function saveCurrentAnalysis() {
         if (!latestAnalysis) {
           alert("Run an analysis first.");
           return;
         }
-    
-        const saved = JSON.parse(localStorage.getItem("savedAnalyses") || "[]");
-    
+        const saved = getSaved();
         saved.unshift({
           id: Date.now(),
           timestamp: new Date().toLocaleString(),
           analysis: latestAnalysis
         });
-    
-        localStorage.setItem("savedAnalyses", JSON.stringify(saved));
-    
+        setSaved(saved);
         alert("Analysis saved.");
       }
-    
-      function showSavedAnalyses() {
-        const saved = JSON.parse(localStorage.getItem("savedAnalyses") || "[]");
-    
-        if (saved.length === 0) {
-          alert("No saved analyses yet.");
+
+      function exportAnalysis(entry) {
+        const blob = new Blob(
+          [JSON.stringify(entry.analysis, null, 2)],
+          { type: "application/json" }
+        );
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "qrc-analysis-" + entry.id + ".json";
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+
+      function renderSavedModal() {
+        const saved = getSaved();
+        const list = document.getElementById("savedList");
+        const empty = document.getElementById("savedModalEmpty");
+        clearEl(list);
+        if (!saved.length) {
+          empty.style.display = "block";
+          list.style.display = "none";
           return;
         }
-    
-        let text = saved
-          .map((s, i) => `${i + 1}. ${s.timestamp}`)
-          .join("\n");
-    
-        alert(text);
+        empty.style.display = "none";
+        list.style.display = "block";
+        saved.forEach((entry, i) => {
+          const item = document.createElement("li");
+          item.className = "saved-item";
+          const time = document.createElement("span");
+          time.className = "saved-item-time";
+          time.textContent = entry.timestamp;
+          const actions = document.createElement("div");
+          actions.className = "saved-item-actions";
+          const openBtn = document.createElement("button");
+          openBtn.className = "saved-item-btn saved-item-open";
+          openBtn.textContent = "Open";
+          openBtn.addEventListener("click", () => {
+            renderResults(entry.analysis);
+            document.getElementById("savedModal").classList.remove("visible");
+          });
+          const exportBtn = document.createElement("button");
+          exportBtn.className = "saved-item-btn saved-item-export";
+          exportBtn.textContent = "Export";
+          exportBtn.addEventListener("click", () => exportAnalysis(entry));
+          const deleteBtn = document.createElement("button");
+          deleteBtn.className = "saved-item-btn saved-item-delete";
+          deleteBtn.textContent = "Delete";
+          deleteBtn.addEventListener("click", () => {
+            const current = getSaved();
+            current.splice(i, 1);
+            setSaved(current);
+            renderSavedModal();
+          });
+          actions.appendChild(openBtn);
+          actions.appendChild(exportBtn);
+          actions.appendChild(deleteBtn);
+          item.appendChild(time);
+          item.appendChild(actions);
+          list.appendChild(item);
+        });
       }
-    
+
+      function showSavedAnalyses() {
+        renderSavedModal();
+        document.getElementById("savedModal").classList.add("visible");
+      }
+
       saveAnalysisBtn.addEventListener("click", saveCurrentAnalysis);
       savedAnalysesBtn.addEventListener("click", showSavedAnalyses);
-    
+
+      document.getElementById("savedModalCloseBtn").addEventListener("click", () => {
+        document.getElementById("savedModal").classList.remove("visible");
+      });
+
+      document.getElementById("savedModal").addEventListener("click", (e) => {
+        if (e.target === document.getElementById("savedModal")) {
+          document.getElementById("savedModal").classList.remove("visible");
+        }
+      });
+
+      document.getElementById("importJsonInput").addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          try {
+            const data = JSON.parse(ev.target.result);
+            renderResults(data);
+            const saved = getSaved();
+            saved.unshift({
+              id: Date.now(),
+              timestamp: new Date().toLocaleString(),
+              analysis: data
+            });
+            setSaved(saved);
+            document.getElementById("savedModal").classList.remove("visible");
+          } catch (err) {
+            alert("Invalid file. Please upload a valid QRC analysis .json file.");
+          }
+        };
+        reader.readAsText(file);
+        e.target.value = "";
+      });
+
       document.getElementById("pdfUpgradeBtn").addEventListener("click", async () => {
         const btn = document.getElementById("pdfUpgradeBtn");
         btn.disabled = true; btn.textContent = "Redirecting...";
@@ -1174,3 +1296,5 @@
         finally { btn.disabled = false; btn.textContent = "Upgrade to Pro →"; }
       });
     </script>
+  </body>
+</html>
