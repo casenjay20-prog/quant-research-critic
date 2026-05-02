@@ -31,7 +31,7 @@ def create_checkout_session_url(quantity: int = 1) -> str:
     session = stripe.checkout.Session.create(
         mode="payment",  # change to "subscription" if using a recurring price
         line_items=[{"price": price_id, "quantity": qty}],
-        success_url=f"{base_url}/success",
+        success_url="https://quantcritic.com/app.html?paid=pdf",
         cancel_url=f"{base_url}/cancel",
     )
 
