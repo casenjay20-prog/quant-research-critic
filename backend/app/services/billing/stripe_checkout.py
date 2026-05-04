@@ -1,21 +1,17 @@
+# backend/app/services/billing/stripe_checkout.py
 from __future__ import annotations
 
 import os
 import stripe
 
 
-def create_checkout_session_url(quantity: int = 1) -> str:
-    """
-    Creates a Stripe Checkout Session and returns the hosted checkout URL.
-
-    Env vars required:
-      - STRIPE_SECRET_KEY
-      - STRIPE_PRICE_ID
-      - APP_BASE_URL (default: http://127.0.0.1:8000)
-    """
-    secret = os.getenv("STRIPE_SECRET_KEY")
+def create_checkout_session_url(
+    quantity: int = 1,
+    customer_email: str | None = None,
+) -> str:
+    secret   = os.getenv("STRIPE_SECRET_KEY")
     price_id = os.getenv("STRIPE_PRICE_ID")
-    base_url = os.getenv("APP_BASE_URL", "http://127.0.0.1:8000")
+    base_url = os.getenv("APP_BASE_URL", "https://quantcritic.com")
 
     if not secret:
         raise RuntimeError("Missing STRIPE_SECRET_KEY env var")
@@ -24,16 +20,18 @@ def create_checkout_session_url(quantity: int = 1) -> str:
 
     stripe.api_key = secret
 
-    qty = int(quantity or 1)
-    if qty < 1:
-        qty = 1
+    session_params: dict = {
+        "mode": "subscription",
+        "line_items": [{"price": price_id, "quantity": 1}],
+        "success_url": f"{base_url}/app.html?session_id={{CHECKOUT_SESSION_ID}}",
+        "cancel_url":  f"{base_url}/app.html",
+        "allow_promotion_codes": True,
+    }
 
-    session = stripe.checkout.Session.create(
-        mode="payment",  # change to "subscription" if using a recurring price
-        line_items=[{"price": price_id, "quantity": qty}],
-        success_url="https://quantcritic.com/app.html?paid=pdf",
-        cancel_url=f"{base_url}/cancel",
-    )
+    if customer_email:
+        session_params["customer_email"] = customer_email
+
+    session = stripe.checkout.Session.create(**session_params)
 
     url = getattr(session, "url", None)
     if not url:

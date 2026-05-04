@@ -486,6 +486,8 @@
       .modal-close { font-family: var(--mono); font-size: 11px; color: var(--text-dim); background: none; border: none; cursor: pointer; padding: 8px 0; text-decoration: underline; }
       .modal-close:hover { color: var(--text-mid); }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./auth.js"></script>
   </head>
 
   <body>
@@ -539,6 +541,9 @@
         <button class="btn btn-outline" id="saveAnalysis" style="display:none;">Save Analysis</button>
         <button class="btn btn-outline" id="savedAnalysesBtn">Saved Analyses</button>
         <button class="btn btn-outline" id="downloadPdf" style="display:none;">↓ Download PDF</button>
+        <button class="btn btn-outline" id="authBtn">Sign In</button>
+        <span id="authEmail" style="font-family:var(--mono);font-size:11px;color:var(--text-dim);display:none;"></span>
+        <button class="btn btn-outline" id="signOutBtn" style="display:none;">Sign Out</button>
       </div>
     </header>
 
@@ -1296,5 +1301,159 @@
         finally { btn.disabled = false; btn.textContent = "Upgrade to Pro →"; }
       });
     </script>
+    <!-- Auth Modal -->
+<div class="modal-overlay" id="authModal">
+  <div class="modal">
+    <div class="modal-kicker">Sign In</div>
+    <div class="modal-title">Get your magic link</div>
+    <div class="modal-body">
+      Enter your email and we'll send you a sign-in link. No password needed.
+    </div>
+    <input
+      id="authEmailInput"
+      type="email"
+      placeholder="you@example.com"
+      style="width:100%;font-family:var(--mono);font-size:13px;padding:10px 14px;border-radius:6px;border:1px solid var(--border-dim);background:var(--card-alt);color:var(--text);outline:none;margin-bottom:16px;"
+    />
+    <div id="authMessage" style="font-family:var(--mono);font-size:12px;color:var(--green);margin-bottom:12px;display:none;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" id="authSubmitBtn">Send Magic Link</button>
+      <button class="modal-close" id="authModalCloseBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── Auth UI ──────────────────────────────────────────────
+  (async () => {
+    await handleAuthRedirect();
+
+    function updateAuthUI(session) {
+      const authBtn    = document.getElementById("authBtn");
+      const signOutBtn = document.getElementById("signOutBtn");
+      const authEmail  = document.getElementById("authEmail");
+
+      if (session) {
+        authBtn.style.display    = "none";
+        signOutBtn.style.display = "inline-block";
+        authEmail.style.display  = "inline-block";
+        authEmail.textContent    = session.user.email;
+      } else {
+        authBtn.style.display    = "inline-block";
+        signOutBtn.style.display = "none";
+        authEmail.style.display  = "none";
+        authEmail.textContent    = "";
+      }
+    }
+
+    onAuthStateChange(updateAuthUI);
+    const session = await getSession();
+    updateAuthUI(session);
+
+    document.getElementById("authBtn").addEventListener("click", () => {
+      document.getElementById("authModal").classList.add("visible");
+    });
+
+    document.getElementById("authModalCloseBtn").addEventListener("click", () => {
+      document.getElementById("authModal").classList.remove("visible");
+    });
+
+    document.getElementById("authModal").addEventListener("click", (e) => {
+      if (e.target === document.getElementById("authModal")) {
+        document.getElementById("authModal").classList.remove("visible");
+      }
+    });
+
+    document.getElementById("authSubmitBtn").addEventListener("click", async () => {
+      const email = document.getElementById("authEmailInput").value.trim();
+      const msg   = document.getElementById("authMessage");
+      const btn   = document.getElementById("authSubmitBtn");
+      if (!email) return;
+      btn.disabled = true;
+      btn.textContent = "Sending...";
+      try {
+        await sendMagicLink(email);
+        msg.style.display = "block";
+        msg.textContent   = "Magic link sent — check your email.";
+      } catch (e) {
+        msg.style.color   = "var(--danger)";
+        msg.style.display = "block";
+        msg.textContent   = "Error: " + (e.message || "Please try again.");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Send Magic Link";
+      }
+    });
+
+    document.getElementById("signOutBtn").addEventListener("click", async () => {
+      await signOut();
+      updateAuthUI(null);
+    });
+
+    // ── PDF gate ─────────────────────────────────────────
+    document.getElementById("downloadPdf").addEventListener("click", async (e) => {
+      e.stopImmediatePropagation();
+      const pro = await isPro();
+      if (!pro) {
+        document.getElementById("pdfModal").classList.add("visible");
+        return;
+      }
+      // Pro user — hit the PDF endpoint directly
+      const btn = document.getElementById("downloadPdf");
+      btn.disabled = true;
+      btn.textContent = "Generating...";
+      try {
+        const session = await getSession();
+        const form = new FormData();
+        for (const file of selectedFiles) form.append("files", file);
+        const res = await fetch(BASE_URL + "/v1/portfolio/pdf", {
+          method: "POST",
+          headers: session ? { Authorization: `Bearer ${session.access_token}` } : {},
+          body: form,
+        });
+        if (!res.ok) { alert("PDF generation failed. Please try again."); return; }
+        const blob = await res.blob();
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement("a");
+        a.href     = url;
+        a.download = "portfolio-intelligence-memo.pdf";
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        alert("Something went wrong generating the PDF.");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "↓ Download PDF";
+      }
+    }, true);
+
+    // ── Checkout: pass email if signed in ────────────────
+    document.getElementById("pdfUpgradeBtn").addEventListener("click", async () => {
+      const btn = document.getElementById("pdfUpgradeBtn");
+      btn.disabled = true;
+      btn.textContent = "Redirecting...";
+      try {
+        const session = await getSession();
+        const body = { quantity: 1 };
+        if (session) body.email = session.user.email;
+        const res = await fetch(BASE_URL + "/v1/billing/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) { alert("Checkout is not available yet."); return; }
+        const data = await res.json();
+        if (data.url) window.location.href = data.url;
+        else alert("Stripe is not configured yet.");
+      } catch (e) {
+        alert("Something went wrong. Please try again.");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Unlock PDF →";
+      }
+    }, true);
+
+  })();
+</script>
   </body>
 </html>

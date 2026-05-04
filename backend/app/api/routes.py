@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
-from fastapi import APIRouter, File, Header, HTTPException, UploadFile
+from fastapi import APIRouter, File, Header, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel
 
@@ -40,6 +40,12 @@ from backend.app.services.reporting.allocator.allocator_pdf import build_allocat
 from backend.app.services.reporting.portfolio.portfolio_pdf import build_portfolio_pdf
 
 from backend.app.services.billing.stripe_checkout import create_checkout_session_url
+from backend.app.services.billing.supabase_auth import (
+    get_user_from_request,
+    get_entitlement,
+    upsert_entitlement,
+    find_user_by_email,
+)
 
 from backend.app.services.robustness import compute_robustness_battery, compute_walk_forward
 from backend.app.services.constraints import compute_deployability_constraints
@@ -1054,3 +1060,74 @@ def billing_success() -> str:
 @router.get("/cancel", response_class=HTMLResponse)
 def billing_cancel() -> str:
     return "<html><body><h1>Checkout canceled</h1><p><a href='/'>Back</a></p></body></html>"
+
+
+# -------------------------
+# Entitlement
+# -------------------------
+@router.get("/v1/entitlement")
+async def entitlement(request: Request) -> dict:
+    user = await get_user_from_request(request)
+    if not user:
+        return {"tier": "free"}
+    ent = await get_entitlement(user["id"])
+    return {"tier": ent.get("tier", "free")}
+
+
+# -------------------------
+# Stripe Webhook
+# -------------------------
+@router.post("/v1/billing/webhook")
+async def billing_webhook(request: Request) -> dict:
+    import stripe as _stripe
+
+    secret = os.getenv("STRIPE_SECRET_KEY")
+    webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
+
+    if not secret or not webhook_secret:
+        raise HTTPException(status_code=500, detail="Stripe env vars missing.")
+
+    _stripe.api_key = secret
+
+    payload = await request.body()
+    sig = request.headers.get("stripe-signature", "")
+
+    try:
+        event = _stripe.Webhook.construct_event(payload, sig, webhook_secret)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Webhook error: {e}")
+
+    if event["type"] == "checkout.session.completed":
+        session = event["data"]["object"]
+        email = session.get("customer_details", {}).get("email")
+        customer_id = session.get("customer")
+        subscription_id = session.get("subscription")
+
+        if email:
+            user = await find_user_by_email(email)
+            if user:
+                await upsert_entitlement(
+                    user_id=user["id"],
+                    tier="pro",
+                    stripe_customer_id=customer_id,
+                    stripe_subscription_id=subscription_id,
+                )
+
+    elif event["type"] in ("customer.subscription.deleted", "customer.subscription.paused"):
+        import httpx
+        sub = event["data"]["object"]
+        customer_id = sub.get("customer")
+        if customer_id:
+            from backend.app.services.billing.supabase_auth import _HEADERS, SUPABASE_URL
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(
+                    f"{SUPABASE_URL}/rest/v1/entitlements",
+                    params={"stripe_customer_id": f"eq.{customer_id}", "select": "user_id"},
+                    headers=_HEADERS,
+                    timeout=6.0,
+                )
+                if resp.status_code == 200 and resp.json():
+                    user_id = resp.json()[0]["user_id"]
+                    await upsert_entitlement(user_id=user_id, tier="free")
+
+    return {"ok": True}
