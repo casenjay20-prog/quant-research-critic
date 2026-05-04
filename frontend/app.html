@@ -538,9 +538,7 @@
       <div class="header-actions">
         <button class="btn btn-outline" id="sampleBtn">Try Sample Portfolio</button>
         <button class="btn btn-primary" id="run">Analyze Portfolio</button>
-        <button class="btn btn-outline" id="saveAnalysis" style="display:none;">Save Analysis</button>
-        <button class="btn btn-outline" id="savedAnalysesBtn">Saved Analyses</button>
-        <button class="btn btn-outline" id="downloadPdf" style="display:none;">↓ Download PDF</button>
+        <button class="btn btn-outline" id="downloadPdf" style="display:none;">↓ PDF</button>
         <button class="btn btn-outline" id="authBtn">Sign In</button>
         <span id="authEmail" style="font-family:var(--mono);font-size:11px;color:var(--text-dim);display:none;"></span>
         <button class="btn btn-outline" id="signOutBtn" style="display:none;">Sign Out</button>
@@ -576,7 +574,11 @@
           <div id="fileList" class="file-list">No files added yet.</div>
         </div>
       </div>
-
+     
+      <div id="analysisToolbar" style="display:none;display:flex;gap:8px;margin-bottom:12px;">
+        <button class="btn btn-outline" id="saveAnalysis">Save Analysis</button>
+        <button class="btn btn-outline" id="savedAnalysesBtn">Saved Analyses</button>
+      </div>
       <div id="emptyHint" class="empty-hint">↓ Upload CSV, XLSX, or ZIP files to begin analysis</div>
 
       <div id="results" style="display:none;">
@@ -1019,7 +1021,7 @@
         document.getElementById("results").style.display = "block";
         document.getElementById("emptyHint").style.display = "none";
         document.getElementById("downloadPdf").style.display = "inline-block";
-        document.getElementById("saveAnalysis").style.display = "inline-block";
+        document.getElementById("analysisToolbar").style.display = "block";
 
         const divScoreRaw = Number(correlation.diversification_score || 0);
         const overlapRisk = String(overlap.portfolio_overlap_risk || "N/A").toUpperCase();
