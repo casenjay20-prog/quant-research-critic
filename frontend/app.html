@@ -1283,25 +1283,6 @@
         e.target.value = "";
       });
 
-      document.getElementById("pdfUpgradeBtn").addEventListener("click", async () => {
-        const btn = document.getElementById("pdfUpgradeBtn");
-        btn.disabled = true; btn.textContent = "Redirecting...";
-        try {
-          const res = await fetch(BASE_URL + "/v1/billing/checkout", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ quantity: 1 })
-          });
-          if (!res.ok) { alert("Checkout is not available yet. Please check back soon."); return; }
-          const data = await res.json();
-          if (data.url) {
-            window.location.href = data.url;
-          } else {
-            alert("Stripe is not configured yet. Check back soon.");
-          }
-        } catch (e) { alert("Something went wrong. Please try again."); }
-        finally { btn.disabled = false; btn.textContent = "Upgrade to Pro →"; }
-      });
     </script>
     <!-- Auth Modal -->
 <div class="modal-overlay" id="authModal">
